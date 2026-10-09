@@ -1,3 +1,4 @@
+
 from DTO.Persona import Persona
 
 
@@ -24,9 +25,33 @@ class Empleado(Persona):
             user_id
         )
 
-        self.fecha_inicio = fecha_inicio
-        self.salario = salario
-        self.departamento_id = departamento_id
+        self.__fecha_inicio = fecha_inicio
+        self.__salario = salario
+        self.__departamento_id = departamento_id
+
+    @property
+    def fecha_inicio(self):
+        return self.__fecha_inicio
+
+    @fecha_inicio.setter
+    def fecha_inicio(self, valor):
+        self.__fecha_inicio = valor
+
+    @property
+    def salario(self):
+        return self.__salario
+
+    @salario.setter
+    def salario(self, valor):
+        self.__salario = valor
+
+    @property
+    def departamento_id(self):
+        return self.__departamento_id
+
+    @departamento_id.setter
+    def departamento_id(self, valor):
+        self.__departamento_id = valor
 
     def __str__(self):
         return (

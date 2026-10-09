@@ -1,135 +1,169 @@
 from DAO.Conexion import conectar
-from DTO.Proyecto import Proyecto
 
 
 def insertar(proyecto):
     conexion = conectar()
 
-    if conexion:
-        try:
-            cursor = conexion.cursor()
+    if not conexion:
+        print("No fue posible conectar con la base de datos.")
+        return
 
-            sql = """
-                INSERT INTO proyecto
+    cursor = None
+
+    try:
+        cursor = conexion.cursor()
+
+        sql = """
+            INSERT INTO proyecto
                 (nombre, descripcion, fecha_inicio)
-                VALUES (%s, %s, %s)
-            """
+            VALUES (%s, %s, %s)
+        """
 
-            datos = (
-                proyecto.nombre,
-                proyecto.descripcion,
-                proyecto.fecha_inicio
-            )
+        datos = (
+            proyecto.nombre,
+            proyecto.descripcion,
+            proyecto.fecha_inicio
+        )
 
-            cursor.execute(sql, datos)
+        cursor.execute(sql, datos)
 
-            proyecto.user_id = cursor.lastrowid
+        proyecto.user_id = cursor.lastrowid
 
-            conexion.commit()
+        conexion.commit()
 
-            print("Proyecto registrado correctamente.")
+        print(
+            f"Proyecto registrado correctamente. "
+            f"ID: {proyecto.user_id}"
+        )
 
-        except Exception as e:
-            conexion.rollback()
-            print("Error al registrar proyecto:", e)
+    except Exception as e:
+        conexion.rollback()
+        print("Error al registrar proyecto:", e)
 
-        finally:
+    finally:
+        if cursor:
             cursor.close()
-            conexion.close()
+        conexion.close()
 
 
 def consultar():
     conexion = conectar()
 
-    if conexion:
-        try:
-            cursor = conexion.cursor()
+    if not conexion:
+        print("No fue posible conectar con la base de datos.")
+        return []
 
-            sql = """
-                SELECT
-                    user_id,
-                    nombre,
-                    descripcion,
-                    fecha_inicio
-                FROM proyecto
-            """
+    cursor = None
 
-            cursor.execute(sql)
+    try:
+        cursor = conexion.cursor()
 
-            resultados = cursor.fetchall()
+        sql = """
+            SELECT
+                user_id,
+                nombre,
+                descripcion,
+                fecha_inicio
+            FROM proyecto
+            ORDER BY user_id
+        """
 
-            for fila in resultados:
-                print(fila)
+        cursor.execute(sql)
 
-            return resultados
+        resultados = cursor.fetchall()
 
-        except Exception as e:
-            print("Error al consultar proyectos:", e)
+        return resultados
 
-        finally:
+    except Exception as e:
+        print("Error al consultar proyectos:", e)
+        return []
+
+    finally:
+        if cursor:
             cursor.close()
-            conexion.close()
+        conexion.close()
 
 
 def modificar(proyecto):
     conexion = conectar()
 
-    if conexion:
-        try:
-            cursor = conexion.cursor()
+    if not conexion:
+        print("No fue posible conectar con la base de datos.")
+        return
 
-            sql = """
-                UPDATE proyecto
-                SET nombre = %s,
-                    descripcion = %s,
-                    fecha_inicio = %s
-                WHERE user_id = %s
-            """
+    cursor = None
 
-            datos = (
-                proyecto.nombre,
-                proyecto.descripcion,
-                proyecto.fecha_inicio,
-                proyecto.user_id
+    try:
+        cursor = conexion.cursor()
+
+        sql = """
+            UPDATE proyecto
+            SET nombre = %s,
+                descripcion = %s,
+                fecha_inicio = %s
+            WHERE user_id = %s
+        """
+
+        datos = (
+            proyecto.nombre,
+            proyecto.descripcion,
+            proyecto.fecha_inicio,
+            proyecto.user_id
+        )
+
+        cursor.execute(sql, datos)
+
+        if cursor.rowcount > 0:
+            conexion.commit()
+            print("Proyecto modificado correctamente.")
+        else:
+            conexion.rollback()
+            print(
+                "No se encontró el proyecto "
+                "o no se realizaron cambios."
             )
 
-            cursor.execute(sql, datos)
+    except Exception as e:
+        conexion.rollback()
+        print("Error al modificar proyecto:", e)
 
-            conexion.commit()
-
-            print("Proyecto modificado correctamente.")
-
-        except Exception as e:
-            conexion.rollback()
-            print("Error al modificar proyecto:", e)
-
-        finally:
+    finally:
+        if cursor:
             cursor.close()
-            conexion.close()
+        conexion.close()
 
 
 def eliminar(user_id):
     conexion = conectar()
 
-    if conexion:
-        try:
-            cursor = conexion.cursor()
+    if not conexion:
+        print("No fue posible conectar con la base de datos.")
+        return
 
-            sql = """
-                DELETE FROM proyecto
-                WHERE user_id = %s
-            """
+    cursor = None
 
-            cursor.execute(sql, (user_id,))
+    try:
+        cursor = conexion.cursor()
 
+        sql = """
+            DELETE FROM proyecto
+            WHERE user_id = %s
+        """
+
+        cursor.execute(sql, (user_id,))
+
+        if cursor.rowcount > 0:
             conexion.commit()
-
             print("Proyecto eliminado correctamente.")
-
-        except Exception as e:
+        else:
             conexion.rollback()
-            print("Error al eliminar proyecto:", e)
+            print("No existe un proyecto con ese ID.")
 
-        finally:
+    except Exception as e:
+        conexion.rollback()
+        print("Error al eliminar proyecto:", e)
+
+    finally:
+        if cursor:
             cursor.close()
-            conexion.close()
+        conexion.close()
