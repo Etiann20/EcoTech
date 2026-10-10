@@ -1,135 +1,276 @@
 from DAO.Conexion import conectar
-from DTO.AsignacionEmp import AsignacionEmp
 
 
 def insertar(asignacion):
     conexion = conectar()
 
-    if conexion:
-        try:
-            cursor = conexion.cursor()
+    if not conexion:
+        print("No fue posible conectar con la base de datos.")
+        return
 
-            sql = """
-                INSERT INTO asignacion_emp
-                (empleado_id, proyecto_id, rol)
-                VALUES (%s, %s, %s)
-            """
+    cursor = None
 
-            datos = (
+    try:
+        cursor = conexion.cursor()
+
+        # Comprobar que el empleado exista.
+        cursor.execute(
+            "SELECT user_id FROM empleado WHERE user_id = %s",
+            (asignacion.empleado_id,)
+        )
+
+        if not cursor.fetchone():
+            print("Error: el empleado seleccionado no existe.")
+            return
+
+        # Comprobar que el proyecto exista.
+        cursor.execute(
+            "SELECT user_id FROM proyecto WHERE user_id = %s",
+            (asignacion.proyecto_id,)
+        )
+
+        if not cursor.fetchone():
+            print("Error: el proyecto seleccionado no existe.")
+            return
+
+        # Evitar asignar dos veces al mismo empleado
+        # al mismo proyecto.
+        sql_duplicado = """
+            SELECT asignacion_id
+            FROM asignacion_emp
+            WHERE empleado_id = %s
+              AND proyecto_id = %s
+        """
+
+        cursor.execute(
+            sql_duplicado,
+            (
                 asignacion.empleado_id,
-                asignacion.proyecto_id,
-                asignacion.rol
+                asignacion.proyecto_id
             )
+        )
 
-            cursor.execute(sql, datos)
+        if cursor.fetchone():
+            print(
+                "Error: el empleado ya está asignado "
+                "a ese proyecto."
+            )
+            return
 
-            asignacion.asignacion_id = cursor.lastrowid
+        sql = """
+            INSERT INTO asignacion_emp
+                (empleado_id, proyecto_id, rol)
+            VALUES (%s, %s, %s)
+        """
 
-            conexion.commit()
+        datos = (
+            asignacion.empleado_id,
+            asignacion.proyecto_id,
+            asignacion.rol
+        )
 
-            print("Asignación registrada correctamente.")
+        cursor.execute(sql, datos)
 
-        except Exception as e:
-            conexion.rollback()
-            print("Error al registrar asignación:", e)
+        asignacion.asignacion_id = cursor.lastrowid
 
-        finally:
+        conexion.commit()
+
+        print(
+            "Asignación registrada correctamente. "
+            f"ID: {asignacion.asignacion_id}"
+        )
+
+    except Exception as e:
+        conexion.rollback()
+        print("Error al registrar asignación:", e)
+
+    finally:
+        if cursor:
             cursor.close()
-            conexion.close()
+        conexion.close()
 
 
 def consultar():
     conexion = conectar()
 
-    if conexion:
-        try:
-            cursor = conexion.cursor()
+    if not conexion:
+        print("No fue posible conectar con la base de datos.")
+        return []
 
-            sql = """
-                SELECT
-                    asignacion_id,
-                    empleado_id,
-                    proyecto_id,
-                    rol
-                FROM asignacion_emp
-            """
+    cursor = None
 
-            cursor.execute(sql)
+    try:
+        cursor = conexion.cursor()
 
-            resultados = cursor.fetchall()
+        sql = """
+            SELECT
+                a.asignacion_id,
+                a.empleado_id,
+                e.nombre,
+                a.proyecto_id,
+                p.nombre,
+                a.rol
+            FROM asignacion_emp AS a
+            LEFT JOIN empleado AS e
+                ON a.empleado_id = e.user_id
+            LEFT JOIN proyecto AS p
+                ON a.proyecto_id = p.user_id
+            ORDER BY a.asignacion_id
+        """
 
-            for fila in resultados:
-                print(fila)
+        cursor.execute(sql)
 
-            return resultados
+        return cursor.fetchall()
 
-        except Exception as e:
-            print("Error al consultar asignaciones:", e)
+    except Exception as e:
+        print("Error al consultar asignaciones:", e)
+        return []
 
-        finally:
+    finally:
+        if cursor:
             cursor.close()
-            conexion.close()
+        conexion.close()
 
 
 def modificar(asignacion):
     conexion = conectar()
 
-    if conexion:
-        try:
-            cursor = conexion.cursor()
+    if not conexion:
+        print("No fue posible conectar con la base de datos.")
+        return
 
-            sql = """
-                UPDATE asignacion_emp
-                SET empleado_id = %s,
-                    proyecto_id = %s,
-                    rol = %s
-                WHERE asignacion_id = %s
+    cursor = None
+
+    try:
+        cursor = conexion.cursor()
+
+        # Comprobar que la asignación exista.
+        cursor.execute(
             """
+            SELECT asignacion_id
+            FROM asignacion_emp
+            WHERE asignacion_id = %s
+            """,
+            (asignacion.asignacion_id,)
+        )
 
-            datos = (
+        if not cursor.fetchone():
+            print("Error: la asignación no existe.")
+            return
+
+        # Comprobar que el empleado exista.
+        cursor.execute(
+            "SELECT user_id FROM empleado WHERE user_id = %s",
+            (asignacion.empleado_id,)
+        )
+
+        if not cursor.fetchone():
+            print("Error: el empleado seleccionado no existe.")
+            return
+
+        # Comprobar que el proyecto exista.
+        cursor.execute(
+            "SELECT user_id FROM proyecto WHERE user_id = %s",
+            (asignacion.proyecto_id,)
+        )
+
+        if not cursor.fetchone():
+            print("Error: el proyecto seleccionado no existe.")
+            return
+
+        # Evitar duplicados, excluyendo la asignación actual.
+        sql_duplicado = """
+            SELECT asignacion_id
+            FROM asignacion_emp
+            WHERE empleado_id = %s
+              AND proyecto_id = %s
+              AND asignacion_id != %s
+        """
+
+        cursor.execute(
+            sql_duplicado,
+            (
                 asignacion.empleado_id,
                 asignacion.proyecto_id,
-                asignacion.rol,
                 asignacion.asignacion_id
             )
+        )
 
-            cursor.execute(sql, datos)
+        if cursor.fetchone():
+            print(
+                "Error: el empleado ya está asignado "
+                "a ese proyecto."
+            )
+            return
 
+        sql = """
+            UPDATE asignacion_emp
+            SET empleado_id = %s,
+                proyecto_id = %s,
+                rol = %s
+            WHERE asignacion_id = %s
+        """
+
+        datos = (
+            asignacion.empleado_id,
+            asignacion.proyecto_id,
+            asignacion.rol,
+            asignacion.asignacion_id
+        )
+
+        cursor.execute(sql, datos)
+
+        if cursor.rowcount > 0:
             conexion.commit()
-
             print("Asignación modificada correctamente.")
-
-        except Exception as e:
+        else:
             conexion.rollback()
-            print("Error al modificar asignación:", e)
+            print(
+                "La asignación existe, pero no se "
+                "detectaron cambios."
+            )
 
-        finally:
+    except Exception as e:
+        conexion.rollback()
+        print("Error al modificar asignación:", e)
+
+    finally:
+        if cursor:
             cursor.close()
-            conexion.close()
+        conexion.close()
 
 
 def eliminar(asignacion_id):
     conexion = conectar()
 
-    if conexion:
-        try:
-            cursor = conexion.cursor()
+    if not conexion:
+        print("No fue posible conectar con la base de datos.")
+        return
 
-            sql = """
-                DELETE FROM asignacion_emp
-                WHERE asignacion_id = %s
-            """
+    cursor = None
 
-            cursor.execute(sql, (asignacion_id,))
+    try:
+        cursor = conexion.cursor()
 
+        sql = """
+            DELETE FROM asignacion_emp
+            WHERE asignacion_id = %s
+        """
+
+        cursor.execute(sql, (asignacion_id,))
+
+        if cursor.rowcount > 0:
             conexion.commit()
-
             print("Asignación eliminada correctamente.")
-
-        except Exception as e:
+        else:
             conexion.rollback()
-            print("Error al eliminar asignación:", e)
+            print("No existe una asignación con ese ID.")
 
-        finally:
+    except Exception as e:
+        conexion.rollback()
+        print("Error al eliminar asignación:", e)
+
+    finally:
+        if cursor:
             cursor.close()
-            conexion.close()
+        conexion.close()
