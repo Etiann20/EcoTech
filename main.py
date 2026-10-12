@@ -4,11 +4,13 @@ from DTO.Departamento import Departamento
 from DTO.Empleado import Empleado
 from DTO.Proyecto import Proyecto
 from DTO.AsignacionEmp import AsignacionEmp
+from DTO.RegistroTiempo import RegistroTiempo
 
 from DAO import GestionDepartamento
 from DAO import GestionEmpleado
 from DAO import GestionProyecto
 from DAO import GestionAsignacion
+from DAO import GestionTiempo
 
 
 # ==================================================
@@ -859,6 +861,363 @@ def menu_asignaciones():
 
 
 # ==================================================
+# MOSTRAR REGISTROS DE TIEMPO
+# ==================================================
+
+def mostrar_registros_tiempo():
+    registros = GestionTiempo.consultar()
+
+    if not registros:
+        print("No hay registros de tiempo registrados.")
+        return []
+
+    encabezados = [
+        "ID", "ID empleado", "Empleado",
+        "ID proyecto", "Proyecto", "Fecha",
+        "Horas", "Descripción"
+    ]
+
+    filas = []
+
+    for registro in registros:
+        filas.append([
+            str(registro[0]),
+            str(registro[1]),
+            str(registro[2] or "Sin asignar"),
+            str(registro[3]),
+            str(registro[4] or "Sin asignar"),
+            str(registro[5]),
+            str(registro[6]),
+            str(registro[7] or "Sin descripción")
+        ])
+
+    anchos = [
+        max(
+            len(encabezados[i]),
+            max(len(fila[i]) for fila in filas)
+        )
+        for i in range(len(encabezados))
+    ]
+
+    separador = "+" + "+".join(
+        "-" * (ancho + 2) for ancho in anchos
+    ) + "+"
+
+    print("\n" + separador)
+    print("| " + " | ".join(
+        encabezados[i].ljust(anchos[i])
+        for i in range(len(encabezados))
+    ) + " |")
+    print(separador)
+
+    for fila in filas:
+        print("| " + " | ".join(
+            fila[i].ljust(anchos[i])
+            for i in range(len(fila))
+        ) + " |")
+
+    print(separador)
+    return registros
+
+
+# ==================================================
+# SELECCIONAR EMPLEADO PARA REGISTRO DE TIEMPOS
+# ==================================================
+
+def seleccionar_empleado_tiempo():
+    empleados = GestionEmpleado.consultar()
+
+    if not empleados:
+        print("No hay empleados registrados.")
+        print("Primero debes registrar un empleado.")
+        return None
+
+    print("\n========== EMPLEADOS DISPONIBLES ==========")
+    print(f"{'ID':<10}{'RUN':<20}{'NOMBRE':<30}")
+    print("-" * 60)
+
+    for empleado in empleados:
+        print(
+            f"{str(empleado[0]):<10}"
+            f"{str(empleado[1]):<20}"
+            f"{str(empleado[2]):<30}"
+        )
+
+    ids_disponibles = [int(empleado[0]) for empleado in empleados]
+
+    while True:
+        empleado_id = leer_entero("Ingrese el ID del empleado: ")
+
+        if empleado_id in ids_disponibles:
+            return empleado_id
+
+        print("Error: selecciona un ID de empleado de la lista.")
+
+
+# ==================================================
+# SELECCIONAR PROYECTO ASIGNADO AL EMPLEADO
+# ==================================================
+
+def seleccionar_proyecto_tiempo(empleado_id):
+    asignaciones = GestionAsignacion.consultar()
+
+    proyectos = [
+        asignacion
+        for asignacion in asignaciones
+        if int(asignacion[1]) == empleado_id
+    ]
+
+    if not proyectos:
+        print("\nEste empleado no tiene proyectos asignados.")
+        print("Primero debes asignarlo a un proyecto.")
+        return None
+
+    print("\n========== PROYECTOS ASIGNADOS ==========")
+    print(f"{'ID PROYECTO':<15}{'PROYECTO':<30}{'ROL':<20}")
+    print("-" * 65)
+
+    for asignacion in proyectos:
+        print(
+            f"{str(asignacion[3]):<15}"
+            f"{str(asignacion[4] or 'Sin asignar'):<30}"
+            f"{str(asignacion[5] or 'Sin definir'):<20}"
+        )
+
+    ids_disponibles = list(dict.fromkeys(
+        int(asignacion[3]) for asignacion in proyectos
+    ))
+
+    if len(ids_disponibles) == 1:
+        proyecto_id = ids_disponibles[0]
+        print(
+            f"\nSe seleccionó el único proyecto asignado: {proyecto_id}"
+        )
+        return proyecto_id
+
+    while True:
+        proyecto_id = leer_entero("Ingrese el ID del proyecto: ")
+
+        if proyecto_id in ids_disponibles:
+            return proyecto_id
+
+        print("Error: selecciona un proyecto de la lista.")
+
+
+# ==================================================
+# CRUD DE REGISTROS DE TIEMPO
+# ==================================================
+
+def menu_tiempos():
+    while True:
+        print("\n========== REGISTRO DE TIEMPOS ==========")
+        print("1. Registrar tiempo")
+        print("2. Consultar registros")
+        print("3. Modificar registro")
+        print("4. Eliminar registro")
+        print("0. Volver")
+
+        opcion = leer_entero("Seleccione una opción: ")
+
+        if opcion == 0:
+            break
+
+        # ------------------------------------------
+        # REGISTRAR
+        # ------------------------------------------
+        elif opcion == 1:
+            print("\n--- Registrar tiempo trabajado ---")
+
+            # Elegir un empleado que tenga proyectos asignados
+            while True:
+                empleado_id = seleccionar_empleado_tiempo()
+
+                if empleado_id is None:
+                    break
+
+                proyecto_id = seleccionar_proyecto_tiempo(empleado_id)
+
+                if proyecto_id is not None:
+                    break
+
+                print("\nPor favor, elija otro empleado.")
+                
+
+            if empleado_id is None or proyecto_id is None:
+                continue
+
+            fecha = leer_fecha("Fecha del trabajo (YYYY-MM-DD): ")
+
+            while True:
+                horas = leer_entero("Horas trabajadas: ")
+
+                if horas > 0:
+                    break
+
+                print("Error: las horas deben ser mayores que cero.")
+
+            descripcion = leer_texto("Descripción del trabajo: ")
+
+            print("\n========== RESUMEN DEL REGISTRO ==========")
+            print(f"Empleado ID: {empleado_id}")
+            print(f"Proyecto ID: {proyecto_id}")
+            print(f"Fecha: {fecha}")
+            print(f"Horas: {horas}")
+            print(f"Descripción: {descripcion}")
+
+            registro = RegistroTiempo(
+                empleado_id=empleado_id,
+                proyecto_id=proyecto_id,
+                fecha=fecha,
+                horas=horas,
+                descripcion=descripcion
+            )
+
+            while True:
+                respuesta = input(
+                    "\n¿Confirma que desea guardar este registro? (sí/no): "
+                ).strip().lower()
+
+                if respuesta in ("si", "sí", "s"):
+                    GestionTiempo.insertar(registro)
+                    break
+
+                elif respuesta in ("no", "n"):
+                    print("Registro cancelado.")
+                    break
+
+                else:
+                    print("Respuesta no válida. Escribe sí o no.")
+
+        # ------------------------------------------
+        # CONSULTAR
+        # ------------------------------------------
+        elif opcion == 2:
+            print("\n--- Registros de tiempo ---")
+            mostrar_registros_tiempo()
+
+        # ------------------------------------------
+        # MODIFICAR
+        # ------------------------------------------
+        elif opcion == 3:
+            print("\n--- Modificar registro de tiempo ---")
+
+            registros = mostrar_registros_tiempo()
+
+            if not registros:
+                continue
+
+            ids_disponibles = [
+                int(registro[0]) for registro in registros
+            ]
+
+            while True:
+                registro_id = leer_entero(
+                    "ID del registro que deseas modificar: "
+                )
+
+                if registro_id in ids_disponibles:
+                    break
+
+                print("Error: selecciona un ID de la tabla.")
+
+            # Elegir un empleado que tenga proyectos asignados
+            while True:
+                empleado_id = seleccionar_empleado_tiempo()
+
+                if empleado_id is None:
+                    break
+
+                proyecto_id = seleccionar_proyecto_tiempo(empleado_id)
+
+                if proyecto_id is not None:
+                    break
+
+                print(
+                    "\nEl ID seleccionado no está asignado a ningún proyecto."
+                )
+                print("Por favor, elija otro empleado.\n")
+
+            if empleado_id is None or proyecto_id is None:
+                continue
+
+            fecha = leer_fecha("Nueva fecha (YYYY-MM-DD): ")
+
+            while True:
+                horas = leer_entero("Nuevas horas trabajadas: ")
+
+                if horas > 0:
+                    break
+
+                print("Error: las horas deben ser mayores que cero.")
+
+            descripcion = leer_texto("Nueva descripción: ")
+
+            print("\n========== RESUMEN DE LA MODIFICACIÓN ==========")
+            print(f"ID del registro: {registro_id}")
+            print(f"Empleado ID: {empleado_id}")
+            print(f"Proyecto ID: {proyecto_id}")
+            print(f"Fecha: {fecha}")
+            print(f"Horas: {horas}")
+            print(f"Descripción: {descripcion}")
+
+            registro = RegistroTiempo(
+                empleado_id=empleado_id,
+                proyecto_id=proyecto_id,
+                fecha=fecha,
+                horas=horas,
+                descripcion=descripcion,
+                user_id=registro_id
+            )
+
+            while True:
+                respuesta = input(
+                    "\n¿Confirma que desea guardar los cambios? (sí/no): "
+                ).strip().lower()
+
+                if respuesta in ("si", "sí", "s"):
+                    GestionTiempo.modificar(registro)
+                    break
+
+                elif respuesta in ("no", "n"):
+                    print("Modificación cancelada.")
+                    break
+
+                else:
+                    print("Respuesta no válida. Escribe sí o no.")
+
+        # ------------------------------------------
+        # ELIMINAR
+        # ------------------------------------------
+        elif opcion == 4:
+            print("\n--- Eliminar registro de tiempo ---")
+
+            registros = mostrar_registros_tiempo()
+
+            if not registros:
+                continue
+
+            ids_disponibles = [
+                int(registro[0]) for registro in registros
+            ]
+
+            while True:
+                registro_id = leer_entero(
+                    "ID del registro que deseas eliminar: "
+                )
+
+                if registro_id in ids_disponibles:
+                    break
+
+                print("Error: selecciona un ID de la tabla.")
+
+            if confirmar_eliminacion():
+                GestionTiempo.eliminar(registro_id)
+
+        else:
+            print("Error: opción no válida.")
+
+
+# ==================================================
 # MENÚ PRINCIPAL
 # ==================================================
 
@@ -891,7 +1250,7 @@ def menu():
             menu_asignaciones()
 
         elif opcion == 5:
-            print("El módulo de registro de tiempos está pendiente.")
+            menu_tiempos()
 
         else:
             print("Error: opción no válida.")
