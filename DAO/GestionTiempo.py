@@ -35,7 +35,6 @@ def insertar(registro):
             print(
                 "Error: el empleado no está asignado a este proyecto."
             )
-            conexion.rollback()
             return False
 
         sql = """
@@ -152,7 +151,6 @@ def modificar(registro):
             print(
                 "Error: el empleado no está asignado a este proyecto."
             )
-            conexion.rollback()
             return False
 
         sql = """

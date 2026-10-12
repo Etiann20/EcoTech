@@ -14,80 +14,207 @@ from DAO import GestionTiempo
 
 
 # ==================================================
-# FUNCIONES PARA VALIDAR DATOS
+# NAVEGACIÓN Y VALIDACIÓN DE DATOS
 # ==================================================
+
+def leer_formulario(campos):
+    """
+    Lee los campos de un formulario y permite:
+    <<         Volver al campo anterior.
+    CANCELAR   Cancelar la operación actual.
+    SALIR      Volver al menú del módulo.
+    """
+    datos = {}
+    indice = 0
+
+    print("\nComandos disponibles:")
+    print("  <<         Volver al campo anterior")
+    print("  CANCELAR   Cancelar esta operación")
+    print("  SALIR      Volver al menú del módulo")
+    print("-" * 55)
+
+    while indice < len(campos):
+        nombre, mensaje, tipo, validador = campos[indice]
+        entrada = input(mensaje).strip()
+
+        if entrada == "<<":
+            if indice == 0:
+                print("Ya estás en el primer campo.")
+            else:
+                indice -= 1
+                campo = campos[indice][0]
+                print(
+                    f"Volviendo al campo '{campo}'. "
+                    f"Valor anterior: {datos.get(campo, '')}"
+                )
+            continue
+
+        if entrada.upper() == "CANCELAR":
+            print("Operación cancelada. No se guardaron cambios.")
+            return "CANCELAR"
+
+        if entrada.upper() == "SALIR":
+            print("Volviendo al menú del módulo.")
+            return "SALIR"
+
+        try:
+            if tipo == "texto":
+                if not entrada:
+                    raise ValueError("El campo no puede estar vacío.")
+                valor = entrada
+
+            elif tipo == "entero":
+                valor = int(entrada)
+
+            elif tipo == "fecha":
+                valor = datetime.strptime(
+                    entrada, "%Y-%m-%d"
+                ).date()
+
+            else:
+                valor = entrada
+
+            if validador is not None:
+                error = validador(valor)
+                if error:
+                    raise ValueError(error)
+
+            datos[nombre] = valor
+            indice += 1
+
+        except ValueError as error:
+            print("Error:", error)
+
+    return datos
+
+
+def validar_positivo(valor):
+    if valor <= 0:
+        return "El valor debe ser mayor que cero."
+    return None
+
+
+def validar_no_negativo(valor):
+    if valor < 0:
+        return "El valor no puede ser negativo."
+    return None
+
 
 def leer_texto(mensaje):
     while True:
-        try:
-            texto = input(mensaje).strip()
+        texto = input(mensaje).strip()
 
-            if not texto:
-                raise ValueError("El campo no puede estar vacío.")
+        if texto.upper() in ("CANCELAR", "SALIR"):
+            return None
 
-            return texto
+        if texto == "<<":
+            print(
+                "Para retroceder entre campos, utiliza "
+                "este comando dentro de un formulario."
+            )
+            continue
 
-        except ValueError as e:
-            print("Error:", e)
+        if not texto:
+            print("Error: el campo no puede estar vacío.")
+            continue
+
+        return texto
 
 
 def leer_entero(mensaje):
     while True:
-        try:
-            return int(input(mensaje).strip())
+        entrada = input(mensaje).strip()
 
+        if entrada.upper() == "CANCELAR":
+            return "CANCELAR"
+
+        if entrada.upper() == "SALIR":
+            return "SALIR"
+
+        if entrada == "<<":
+            print(
+                "Para retroceder entre campos, utiliza "
+                "este comando dentro de un formulario."
+            )
+            continue
+
+        try:
+            return int(entrada)
         except ValueError:
             print("Error: debes ingresar un número entero.")
 
 
 def leer_fecha(mensaje):
     while True:
-        try:
-            fecha_texto = input(mensaje).strip()
-            return datetime.strptime(fecha_texto, "%Y-%m-%d").date()
+        entrada = input(mensaje).strip()
 
+        if entrada.upper() in ("CANCELAR", "SALIR"):
+            return None
+
+        if entrada == "<<":
+            print(
+                "Para retroceder entre campos, utiliza "
+                "este comando dentro de un formulario."
+            )
+            continue
+
+        try:
+            return datetime.strptime(
+                entrada, "%Y-%m-%d"
+            ).date()
         except ValueError:
-            print("Error: usa una fecha válida con formato YYYY-MM-DD.")
+            print(
+                "Error: usa una fecha válida "
+                "con formato YYYY-MM-DD."
+            )
+
 
 
 # ==================================================
 # CONFIRMACIONES
 # ==================================================
 
-def confirmar_eliminacion():
+
+
+# ==================================================
+# CONFIRMACIONES
+# ==================================================
+
+def confirmar_operacion(mensaje):
     while True:
         respuesta = input(
-            "¿Está realmente seguro que quiere eliminar? (sí/no): "
+            f"{mensaje}\n"
+            "Escribe SÍ, NO, CANCELAR o SALIR: "
         ).strip().lower()
 
         if respuesta in ("si", "sí", "s"):
             return True
 
-        elif respuesta in ("no", "n"):
-            print("Eliminación cancelada.")
+        elif respuesta in ("no", "n", "cancelar"):
+            print("Operación cancelada. No se guardaron cambios.")
             return False
 
+        elif respuesta == "salir":
+            print("Volviendo al menú del módulo.")
+            return "SALIR"
+
+        elif respuesta == "<<":
+            print("No hay un campo anterior en la confirmación.")
+
         else:
-            print("Respuesta no válida. Escribe sí o no.")
+            print("Respuesta no válida.")
+
+
+def confirmar_eliminacion():
+    return confirmar_operacion(
+        "¿Está realmente seguro que quiere eliminar?"
+    )
 
 
 def confirmar_asignacion(accion="registrar"):
-    while True:
-        respuesta = input(
-            f"¿Está realmente seguro que quiere {accion} "
-            "esta asignación? (sí/no): "
-        ).strip().lower()
-
-        if respuesta in ("si", "sí", "s"):
-            return True
-
-        elif respuesta in ("no", "n"):
-            print("Operación cancelada.")
-            return False
-
-        else:
-            print("Respuesta no válida. Escribe sí o no.")
-
+    return confirmar_operacion(
+        f"¿Confirma que desea {accion} esta asignación?"
+    )
 
 # ==================================================
 # MOSTRAR DEPARTAMENTOS
@@ -304,6 +431,7 @@ def mostrar_asignaciones():
 # SELECCIONAR DEPARTAMENTO
 # ==================================================
 
+
 def seleccionar_departamento():
     departamentos = mostrar_departamentos()
 
@@ -317,17 +445,40 @@ def seleccionar_departamento():
     ids_disponibles = [fila[0] for fila in departamentos]
 
     while True:
-        departamento_id = leer_entero("ID del departamento: ")
+        entrada = input(
+            "ID del departamento "
+            "(CANCELAR o SALIR para volver): "
+        ).strip()
 
-        if departamento_id in ids_disponibles:
-            return departamento_id
+        if entrada.upper() == "CANCELAR":
+            print("Selección cancelada.")
+            return "CANCELAR"
 
-        print("Error: selecciona un ID de departamento existente.")
+        if entrada.upper() == "SALIR":
+            print("Volviendo al menú del módulo.")
+            return "SALIR"
+
+        if entrada == "<<":
+            print("Estás en la selección del departamento.")
+            continue
+
+        try:
+            departamento_id = int(entrada)
+
+            if departamento_id in ids_disponibles:
+                return departamento_id
+
+            print("Error: selecciona un ID de la tabla.")
+
+        except ValueError:
+            print("Error: debes ingresar un número entero.")
 
 
 # ==================================================
 # CRUD DE DEPARTAMENTOS
 # ==================================================
+
+
 
 def menu_departamentos():
     while True:
@@ -340,18 +491,32 @@ def menu_departamentos():
 
         opcion = leer_entero("Seleccione una opción: ")
 
+        if opcion == "SALIR" or opcion == "CANCELAR":
+            break
+
+        if opcion is None:
+            continue
+
         if opcion == 0:
             break
 
         elif opcion == 1:
             print("\n--- Registrar departamento ---")
 
-            nombre = leer_texto("Nombre: ")
-            descripcion = leer_texto("Descripción: ")
+            datos = leer_formulario([
+                ("nombre", "Nombre: ", "texto", None),
+                ("descripcion", "Descripción: ", "texto", None),
+            ])
+
+            if datos == "SALIR":
+                break
+
+            if datos == "CANCELAR":
+                continue
 
             departamento = Departamento(
-                nombre=nombre,
-                descripcion=descripcion
+                nombre=datos["nombre"],
+                descripcion=datos["descripcion"]
             )
 
             GestionDepartamento.insertar(departamento)
@@ -369,27 +534,65 @@ def menu_departamentos():
                 continue
 
             ids_disponibles = [fila[0] for fila in departamentos]
+            user_id = None
 
-            user_id = leer_entero(
-                "ID del departamento que deseas modificar: "
-            )
+            while True:
+                entrada = input(
+                    "ID del departamento a modificar "
+                    "(CANCELAR o SALIR para volver): "
+                ).strip()
 
-            if user_id not in ids_disponibles:
-                print("Error: el departamento no existe.")
+                if entrada.upper() == "CANCELAR":
+                    break
+
+                if entrada.upper() == "SALIR":
+                    return
+
+                if entrada == "<<":
+                    print("Estás en la selección del ID.")
+                    continue
+
+                try:
+                    id_seleccionado = int(entrada)
+
+                    if id_seleccionado in ids_disponibles:
+                        user_id = id_seleccionado
+                        break
+
+                    print(
+                        "Error: selecciona un ID "
+                        "que aparezca en la tabla."
+                    )
+
+                except ValueError:
+                    print("Error: ingresa un ID numérico.")
+
+            if user_id is None:
                 continue
 
-            nombre = leer_texto("Nuevo nombre: ")
-            descripcion = leer_texto("Nueva descripción: ")
+            datos = leer_formulario([
+                ("nombre", "Nuevo nombre: ", "texto", None),
+                ("descripcion", "Nueva descripción: ", "texto", None),
+            ])
+
+            if datos == "SALIR":
+                break
+
+            if datos == "CANCELAR":
+                continue
 
             gerente_id = next(
-                fila[2]
-                for fila in departamentos
-                if fila[0] == user_id
+                (
+                    fila[2]
+                    for fila in departamentos
+                    if fila[0] == user_id
+                ),
+                None
             )
 
             departamento = Departamento(
-                nombre=nombre,
-                descripcion=descripcion,
+                nombre=datos["nombre"],
+                descripcion=datos["descripcion"],
                 gerente_empleado_id=gerente_id,
                 user_id=user_id
             )
@@ -405,16 +608,48 @@ def menu_departamentos():
                 continue
 
             ids_disponibles = [fila[0] for fila in departamentos]
+            user_id = None
 
-            user_id = leer_entero(
-                "ID del departamento que deseas eliminar: "
-            )
+            while True:
+                entrada = input(
+                    "ID del departamento a eliminar "
+                    "(CANCELAR o SALIR para volver): "
+                ).strip()
 
-            if user_id not in ids_disponibles:
-                print("Error: el departamento no existe.")
+                if entrada.upper() == "CANCELAR":
+                    break
+
+                if entrada.upper() == "SALIR":
+                    return
+
+                if entrada == "<<":
+                    print("Estás en la selección del ID.")
+                    continue
+
+                try:
+                    id_seleccionado = int(entrada)
+
+                    if id_seleccionado in ids_disponibles:
+                        user_id = id_seleccionado
+                        break
+
+                    print(
+                        "Error: selecciona un ID "
+                        "que aparezca en la tabla."
+                    )
+
+                except ValueError:
+                    print("Error: ingresa un ID numérico.")
+
+            if user_id is None:
                 continue
 
-            if confirmar_eliminacion():
+            respuesta = confirmar_eliminacion()
+
+            if respuesta == "SALIR":
+                break
+
+            if respuesta is True:
                 GestionDepartamento.eliminar(user_id)
 
         else:
@@ -424,6 +659,8 @@ def menu_departamentos():
 # ==================================================
 # CRUD DE EMPLEADOS
 # ==================================================
+
+
 
 def menu_empleados():
     while True:
@@ -436,48 +673,83 @@ def menu_empleados():
 
         opcion = leer_entero("Seleccione una opción: ")
 
+        if opcion in ("CANCELAR", "SALIR"):
+            break
+
+        if opcion is None:
+            continue
+
         if opcion == 0:
             break
 
+        # ------------------------------------------
+        # REGISTRAR EMPLEADO
+        # ------------------------------------------
         elif opcion == 1:
             print("\n--- Registrar empleado ---")
 
             departamento_id = seleccionar_departamento()
 
-            if departamento_id is None:
+            if departamento_id in (None, "CANCELAR"):
                 continue
 
-            run = leer_texto("RUN: ")
-            nombre = leer_texto("Nombre: ")
-            direccion = leer_texto("Dirección: ")
-            telefono = leer_entero("Teléfono (solo números): ")
-            correo = leer_texto("Correo: ")
-            fecha_inicio = leer_fecha(
-                "Fecha de inicio (YYYY-MM-DD): "
-            )
-            salario = leer_entero("Salario: ")
+            if departamento_id == "SALIR":
+                break
 
-            if salario < 0:
-                print("Error: el salario no puede ser negativo.")
+            datos = leer_formulario([
+                ("run", "RUN: ", "texto", None),
+                ("nombre", "Nombre: ", "texto", None),
+                ("direccion", "Dirección: ", "texto", None),
+                (
+                    "telefono",
+                    "Teléfono (solo números): ",
+                    "entero",
+                    validar_no_negativo
+                ),
+                ("correo", "Correo: ", "texto", None),
+                (
+                    "fecha_inicio",
+                    "Fecha de inicio (YYYY-MM-DD): ",
+                    "fecha",
+                    None
+                ),
+                (
+                    "salario",
+                    "Salario: ",
+                    "entero",
+                    validar_no_negativo
+                ),
+            ])
+
+            if datos == "SALIR":
+                break
+
+            if datos == "CANCELAR":
                 continue
 
             empleado = Empleado(
-                run=run,
-                nombre=nombre,
-                direccion=direccion,
-                telefono=telefono,
-                correo=correo,
-                fecha_inicio=fecha_inicio,
-                salario=salario,
+                run=datos["run"],
+                nombre=datos["nombre"],
+                direccion=datos["direccion"],
+                telefono=datos["telefono"],
+                correo=datos["correo"],
+                fecha_inicio=datos["fecha_inicio"],
+                salario=datos["salario"],
                 departamento_id=departamento_id
             )
 
             GestionEmpleado.insertar(empleado)
 
+        # ------------------------------------------
+        # CONSULTAR EMPLEADOS
+        # ------------------------------------------
         elif opcion == 2:
             print("\n--- Empleados registrados ---")
             mostrar_empleados()
 
+        # ------------------------------------------
+        # MODIFICAR EMPLEADO
+        # ------------------------------------------
         elif opcion == 3:
             print("\n--- Modificar empleado ---")
 
@@ -487,50 +759,95 @@ def menu_empleados():
                 continue
 
             ids_disponibles = [fila[0] for fila in empleados]
+            user_id = None
 
-            user_id = leer_entero(
-                "ID del empleado que deseas modificar: "
-            )
+            while True:
+                entrada = input(
+                    "ID del empleado que deseas modificar "
+                    "(CANCELAR o SALIR para volver): "
+                ).strip()
 
-            if user_id not in ids_disponibles:
-                print("Error: el empleado no existe.")
+                if entrada.upper() == "CANCELAR":
+                    break
+
+                if entrada.upper() == "SALIR":
+                    return
+
+                if entrada == "<<":
+                    print("Estás en la selección del ID.")
+                    continue
+
+                try:
+                    id_seleccionado = int(entrada)
+
+                    if id_seleccionado in ids_disponibles:
+                        user_id = id_seleccionado
+                        break
+
+                    print("Error: selecciona un ID de la tabla.")
+
+                except ValueError:
+                    print("Error: ingresa un ID numérico.")
+
+            if user_id is None:
                 continue
 
             departamento_id = seleccionar_departamento()
 
-            if departamento_id is None:
+            if departamento_id in (None, "CANCELAR"):
                 continue
 
-            run = leer_texto("Nuevo RUN: ")
-            nombre = leer_texto("Nuevo nombre: ")
-            direccion = leer_texto("Nueva dirección: ")
-            telefono = leer_entero(
-                "Nuevo teléfono (solo números): "
-            )
-            correo = leer_texto("Nuevo correo: ")
-            fecha_inicio = leer_fecha(
-                "Nueva fecha de inicio (YYYY-MM-DD): "
-            )
-            salario = leer_entero("Nuevo salario: ")
+            if departamento_id == "SALIR":
+                break
 
-            if salario < 0:
-                print("Error: el salario no puede ser negativo.")
+            datos = leer_formulario([
+                ("run", "Nuevo RUN: ", "texto", None),
+                ("nombre", "Nuevo nombre: ", "texto", None),
+                ("direccion", "Nueva dirección: ", "texto", None),
+                (
+                    "telefono",
+                    "Nuevo teléfono (solo números): ",
+                    "entero",
+                    validar_no_negativo
+                ),
+                ("correo", "Nuevo correo: ", "texto", None),
+                (
+                    "fecha_inicio",
+                    "Nueva fecha de inicio (YYYY-MM-DD): ",
+                    "fecha",
+                    None
+                ),
+                (
+                    "salario",
+                    "Nuevo salario: ",
+                    "entero",
+                    validar_no_negativo
+                ),
+            ])
+
+            if datos == "SALIR":
+                break
+
+            if datos == "CANCELAR":
                 continue
 
             empleado = Empleado(
-                run=run,
-                nombre=nombre,
-                direccion=direccion,
-                telefono=telefono,
-                correo=correo,
-                fecha_inicio=fecha_inicio,
-                salario=salario,
+                run=datos["run"],
+                nombre=datos["nombre"],
+                direccion=datos["direccion"],
+                telefono=datos["telefono"],
+                correo=datos["correo"],
+                fecha_inicio=datos["fecha_inicio"],
+                salario=datos["salario"],
                 departamento_id=departamento_id,
                 user_id=user_id
             )
 
             GestionEmpleado.modificar(empleado)
 
+        # ------------------------------------------
+        # ELIMINAR EMPLEADO
+        # ------------------------------------------
         elif opcion == 4:
             print("\n--- Eliminar empleado ---")
 
@@ -540,25 +857,57 @@ def menu_empleados():
                 continue
 
             ids_disponibles = [fila[0] for fila in empleados]
+            user_id = None
 
-            user_id = leer_entero(
-                "ID del empleado que deseas eliminar: "
-            )
+            while True:
+                entrada = input(
+                    "ID del empleado que deseas eliminar "
+                    "(CANCELAR o SALIR para volver): "
+                ).strip()
 
-            if user_id not in ids_disponibles:
-                print("Error: el empleado no existe.")
+                if entrada.upper() == "CANCELAR":
+                    break
+
+                if entrada.upper() == "SALIR":
+                    return
+
+                if entrada == "<<":
+                    print("Estás en la selección del ID.")
+                    continue
+
+                try:
+                    id_seleccionado = int(entrada)
+
+                    if id_seleccionado in ids_disponibles:
+                        user_id = id_seleccionado
+                        break
+
+                    print("Error: selecciona un ID de la tabla.")
+
+                except ValueError:
+                    print("Error: ingresa un ID numérico.")
+
+            if user_id is None:
                 continue
 
-            if confirmar_eliminacion():
+            respuesta = confirmar_eliminacion()
+
+            if respuesta == "SALIR":
+                break
+
+            if respuesta is True:
                 GestionEmpleado.eliminar(user_id)
 
         else:
             print("Error: opción no válida.")
 
 
+
+
 # ==================================================
 # CRUD DE PROYECTOS
 # ==================================================
+
 
 def menu_proyectos():
     while True:
@@ -571,30 +920,56 @@ def menu_proyectos():
 
         opcion = leer_entero("Seleccione una opción: ")
 
+        if opcion in ("CANCELAR", "SALIR"):
+            break
+
+        if opcion is None:
+            continue
+
         if opcion == 0:
             break
 
+        # ------------------------------------------
+        # REGISTRAR PROYECTO
+        # ------------------------------------------
         elif opcion == 1:
             print("\n--- Registrar proyecto ---")
 
-            nombre = leer_texto("Nombre: ")
-            descripcion = leer_texto("Descripción: ")
-            fecha_inicio = leer_fecha(
-                "Fecha de inicio (YYYY-MM-DD): "
-            )
+            datos = leer_formulario([
+                ("nombre", "Nombre: ", "texto", None),
+                ("descripcion", "Descripción: ", "texto", None),
+                (
+                    "fecha_inicio",
+                    "Fecha de inicio (YYYY-MM-DD): ",
+                    "fecha",
+                    None
+                ),
+            ])
+
+            if datos == "SALIR":
+                break
+
+            if datos == "CANCELAR":
+                continue
 
             proyecto = Proyecto(
-                nombre=nombre,
-                descripcion=descripcion,
-                fecha_inicio=fecha_inicio
+                nombre=datos["nombre"],
+                descripcion=datos["descripcion"],
+                fecha_inicio=datos["fecha_inicio"]
             )
 
             GestionProyecto.insertar(proyecto)
 
+        # ------------------------------------------
+        # CONSULTAR PROYECTOS
+        # ------------------------------------------
         elif opcion == 2:
             print("\n--- Proyectos registrados ---")
             mostrar_proyectos()
 
+        # ------------------------------------------
+        # MODIFICAR PROYECTO
+        # ------------------------------------------
         elif opcion == 3:
             print("\n--- Modificar proyecto ---")
 
@@ -604,30 +979,68 @@ def menu_proyectos():
                 continue
 
             ids_disponibles = [fila[0] for fila in proyectos]
+            user_id = None
 
-            user_id = leer_entero(
-                "ID del proyecto que deseas modificar: "
-            )
+            while True:
+                entrada = input(
+                    "ID del proyecto que deseas modificar "
+                    "(CANCELAR o SALIR para volver): "
+                ).strip()
 
-            if user_id not in ids_disponibles:
-                print("Error: el proyecto no existe.")
+                if entrada.upper() == "CANCELAR":
+                    break
+
+                if entrada.upper() == "SALIR":
+                    return
+
+                if entrada == "<<":
+                    print("Estás en la selección del ID.")
+                    continue
+
+                try:
+                    id_seleccionado = int(entrada)
+
+                    if id_seleccionado in ids_disponibles:
+                        user_id = id_seleccionado
+                        break
+
+                    print("Error: selecciona un ID de la tabla.")
+
+                except ValueError:
+                    print("Error: ingresa un ID numérico.")
+
+            if user_id is None:
                 continue
 
-            nombre = leer_texto("Nuevo nombre: ")
-            descripcion = leer_texto("Nueva descripción: ")
-            fecha_inicio = leer_fecha(
-                "Nueva fecha de inicio (YYYY-MM-DD): "
-            )
+            datos = leer_formulario([
+                ("nombre", "Nuevo nombre: ", "texto", None),
+                ("descripcion", "Nueva descripción: ", "texto", None),
+                (
+                    "fecha_inicio",
+                    "Nueva fecha de inicio (YYYY-MM-DD): ",
+                    "fecha",
+                    None
+                ),
+            ])
+
+            if datos == "SALIR":
+                break
+
+            if datos == "CANCELAR":
+                continue
 
             proyecto = Proyecto(
-                nombre=nombre,
-                descripcion=descripcion,
-                fecha_inicio=fecha_inicio,
+                nombre=datos["nombre"],
+                descripcion=datos["descripcion"],
+                fecha_inicio=datos["fecha_inicio"],
                 user_id=user_id
             )
 
             GestionProyecto.modificar(proyecto)
 
+        # ------------------------------------------
+        # ELIMINAR PROYECTO
+        # ------------------------------------------
         elif opcion == 4:
             print("\n--- Eliminar proyecto ---")
 
@@ -637,16 +1050,45 @@ def menu_proyectos():
                 continue
 
             ids_disponibles = [fila[0] for fila in proyectos]
+            user_id = None
 
-            user_id = leer_entero(
-                "ID del proyecto que deseas eliminar: "
-            )
+            while True:
+                entrada = input(
+                    "ID del proyecto que deseas eliminar "
+                    "(CANCELAR o SALIR para volver): "
+                ).strip()
 
-            if user_id not in ids_disponibles:
-                print("Error: el proyecto no existe.")
+                if entrada.upper() == "CANCELAR":
+                    break
+
+                if entrada.upper() == "SALIR":
+                    return
+
+                if entrada == "<<":
+                    print("Estás en la selección del ID.")
+                    continue
+
+                try:
+                    id_seleccionado = int(entrada)
+
+                    if id_seleccionado in ids_disponibles:
+                        user_id = id_seleccionado
+                        break
+
+                    print("Error: selecciona un ID de la tabla.")
+
+                except ValueError:
+                    print("Error: ingresa un ID numérico.")
+
+            if user_id is None:
                 continue
 
-            if confirmar_eliminacion():
+            respuesta = confirmar_eliminacion()
+
+            if respuesta == "SALIR":
+                break
+
+            if respuesta is True:
                 GestionProyecto.eliminar(user_id)
 
         else:
@@ -656,6 +1098,8 @@ def menu_proyectos():
 # ==================================================
 # SELECCIÓN GUIADA PARA ASIGNACIONES
 # ==================================================
+
+
 
 def seleccionar_empleado_asignacion():
     empleados = GestionEmpleado.consultar()
@@ -678,16 +1122,39 @@ def seleccionar_empleado_asignacion():
     ids_disponibles = [fila[0] for fila in empleados]
 
     while True:
-        empleado_id = leer_entero("Ingrese el ID del empleado: ")
+        entrada = input(
+            "Ingrese el ID del empleado "
+            "(CANCELAR o SALIR para volver): "
+        ).strip()
 
-        if empleado_id in ids_disponibles:
-            empleado = next(
-                fila for fila in empleados if fila[0] == empleado_id
-            )
-            return empleado_id, empleado[2]
+        if entrada.upper() == "CANCELAR":
+            print("Selección de empleado cancelada.")
+            return "CANCELAR"
 
-        print("Error: ese ID de empleado no existe.")
-        print("Selecciona uno de los IDs mostrados en la tabla.")
+        if entrada.upper() == "SALIR":
+            print("Volviendo al menú anterior.")
+            return "SALIR"
+
+        if entrada == "<<":
+            print("Estás en la selección del empleado.")
+            continue
+
+        try:
+            empleado_id = int(entrada)
+
+            if empleado_id in ids_disponibles:
+                empleado = next(
+                    fila for fila in empleados
+                    if fila[0] == empleado_id
+                )
+                return empleado_id, empleado[2]
+
+            print("Error: ese ID no existe.")
+            print("Selecciona uno de los IDs de la tabla.")
+
+        except ValueError:
+            print("Error: ingresa un número entero.")
+
 
 
 def seleccionar_proyecto_asignacion():
@@ -718,21 +1185,44 @@ def seleccionar_proyecto_asignacion():
     ids_disponibles = [fila[0] for fila in proyectos]
 
     while True:
-        proyecto_id = leer_entero("Ingrese el ID del proyecto: ")
+        entrada = input(
+            "Ingrese el ID del proyecto "
+            "(CANCELAR o SALIR para volver): "
+        ).strip()
 
-        if proyecto_id in ids_disponibles:
-            proyecto = next(
-                fila for fila in proyectos if fila[0] == proyecto_id
-            )
-            return proyecto_id, proyecto[1]
+        if entrada.upper() == "CANCELAR":
+            print("Selección de proyecto cancelada.")
+            return "CANCELAR"
 
-        print("Error: ese ID de proyecto no existe.")
-        print("Selecciona uno de los IDs mostrados en la tabla.")
+        if entrada.upper() == "SALIR":
+            print("Volviendo al menú anterior.")
+            return "SALIR"
+
+        if entrada == "<<":
+            print("Estás en la selección del proyecto.")
+            continue
+
+        try:
+            proyecto_id = int(entrada)
+
+            if proyecto_id in ids_disponibles:
+                proyecto = next(
+                    fila for fila in proyectos
+                    if fila[0] == proyecto_id
+                )
+                return proyecto_id, proyecto[1]
+
+            print("Error: ese ID no existe.")
+            print("Selecciona uno de los IDs de la tabla.")
+
+        except ValueError:
+            print("Error: ingresa un número entero.")
 
 
 # ==================================================
 # CRUD DE ASIGNACIONES
 # ==================================================
+
 
 def menu_asignaciones():
     while True:
@@ -745,9 +1235,18 @@ def menu_asignaciones():
 
         opcion = leer_entero("Seleccione una opción: ")
 
+        if opcion in ("CANCELAR", "SALIR"):
+            break
+
+        if opcion is None:
+            continue
+
         if opcion == 0:
             break
 
+        # ------------------------------------------
+        # REGISTRAR ASIGNACIÓN
+        # ------------------------------------------
         elif opcion == 1:
             print("\n--- Registrar asignación ---")
 
@@ -756,6 +1255,12 @@ def menu_asignaciones():
             if empleado_seleccionado is None:
                 continue
 
+            if empleado_seleccionado == "CANCELAR":
+                continue
+
+            if empleado_seleccionado == "SALIR":
+                break
+
             empleado_id, empleado_nombre = empleado_seleccionado
 
             proyecto_seleccionado = seleccionar_proyecto_asignacion()
@@ -763,8 +1268,25 @@ def menu_asignaciones():
             if proyecto_seleccionado is None:
                 continue
 
+            if proyecto_seleccionado == "CANCELAR":
+                continue
+
+            if proyecto_seleccionado == "SALIR":
+                break
+
             proyecto_id, proyecto_nombre = proyecto_seleccionado
-            rol = leer_texto("Rol del empleado en el proyecto: ")
+
+            datos = leer_formulario([
+                ("rol", "Rol del empleado en el proyecto: ", "texto", None),
+            ])
+
+            if datos == "SALIR":
+                break
+
+            if datos == "CANCELAR":
+                continue
+
+            rol = datos["rol"]
 
             print("\n========== RESUMEN DE LA ASIGNACIÓN ==========")
             print(f"ID empleado: {empleado_id}")
@@ -774,7 +1296,12 @@ def menu_asignaciones():
             print(f"Rol:         {rol}")
             print("=" * 48)
 
-            if confirmar_asignacion("registrar"):
+            respuesta = confirmar_asignacion("registrar")
+
+            if respuesta == "SALIR":
+                break
+
+            if respuesta is True:
                 asignacion = AsignacionEmp(
                     empleado_id=empleado_id,
                     proyecto_id=proyecto_id,
@@ -782,10 +1309,16 @@ def menu_asignaciones():
                 )
                 GestionAsignacion.insertar(asignacion)
 
+        # ------------------------------------------
+        # CONSULTAR ASIGNACIONES
+        # ------------------------------------------
         elif opcion == 2:
             print("\n--- Asignaciones registradas ---")
             mostrar_asignaciones()
 
+        # ------------------------------------------
+        # MODIFICAR ASIGNACIÓN
+        # ------------------------------------------
         elif opcion == 3:
             print("\n--- Modificar asignación ---")
 
@@ -795,19 +1328,49 @@ def menu_asignaciones():
                 continue
 
             ids_disponibles = [fila[0] for fila in asignaciones]
+            asignacion_id = None
 
-            asignacion_id = leer_entero(
-                "ID de la asignación que deseas modificar: "
-            )
+            while True:
+                entrada = input(
+                    "ID de la asignación que deseas modificar "
+                    "(CANCELAR o SALIR para volver): "
+                ).strip()
 
-            if asignacion_id not in ids_disponibles:
-                print("Error: la asignación no existe.")
+                if entrada.upper() == "CANCELAR":
+                    break
+
+                if entrada.upper() == "SALIR":
+                    return
+
+                if entrada == "<<":
+                    print("Estás en la selección de la asignación.")
+                    continue
+
+                try:
+                    id_seleccionado = int(entrada)
+
+                    if id_seleccionado in ids_disponibles:
+                        asignacion_id = id_seleccionado
+                        break
+
+                    print("Error: selecciona un ID de la tabla.")
+
+                except ValueError:
+                    print("Error: ingresa un ID numérico.")
+
+            if asignacion_id is None:
                 continue
 
             empleado_seleccionado = seleccionar_empleado_asignacion()
 
             if empleado_seleccionado is None:
                 continue
+
+            if empleado_seleccionado == "CANCELAR":
+                continue
+
+            if empleado_seleccionado == "SALIR":
+                break
 
             empleado_id, empleado_nombre = empleado_seleccionado
 
@@ -816,17 +1379,39 @@ def menu_asignaciones():
             if proyecto_seleccionado is None:
                 continue
 
+            if proyecto_seleccionado == "CANCELAR":
+                continue
+
+            if proyecto_seleccionado == "SALIR":
+                break
+
             proyecto_id, proyecto_nombre = proyecto_seleccionado
-            rol = leer_texto("Nuevo rol: ")
+
+            datos = leer_formulario([
+                ("rol", "Nuevo rol: ", "texto", None),
+            ])
+
+            if datos == "SALIR":
+                break
+
+            if datos == "CANCELAR":
+                continue
+
+            rol = datos["rol"]
 
             print("\n========== RESUMEN DE LA MODIFICACIÓN ==========")
             print(f"ID asignación: {asignacion_id}")
-            print(f"Empleado:      {empleado_nombre} (ID: {empleado_id})")
-            print(f"Proyecto:      {proyecto_nombre} (ID: {proyecto_id})")
-            print(f"Nuevo rol:     {rol}")
+            print(f"Empleado: {empleado_nombre} (ID: {empleado_id})")
+            print(f"Proyecto: {proyecto_nombre} (ID: {proyecto_id})")
+            print(f"Nuevo rol: {rol}")
             print("=" * 50)
 
-            if confirmar_asignacion("modificar"):
+            respuesta = confirmar_asignacion("modificar")
+
+            if respuesta == "SALIR":
+                break
+
+            if respuesta is True:
                 asignacion = AsignacionEmp(
                     empleado_id=empleado_id,
                     proyecto_id=proyecto_id,
@@ -835,6 +1420,9 @@ def menu_asignaciones():
                 )
                 GestionAsignacion.modificar(asignacion)
 
+        # ------------------------------------------
+        # ELIMINAR ASIGNACIÓN
+        # ------------------------------------------
         elif opcion == 4:
             print("\n--- Eliminar asignación ---")
 
@@ -844,16 +1432,45 @@ def menu_asignaciones():
                 continue
 
             ids_disponibles = [fila[0] for fila in asignaciones]
+            asignacion_id = None
 
-            asignacion_id = leer_entero(
-                "ID de la asignación que deseas eliminar: "
-            )
+            while True:
+                entrada = input(
+                    "ID de la asignación que deseas eliminar "
+                    "(CANCELAR o SALIR para volver): "
+                ).strip()
 
-            if asignacion_id not in ids_disponibles:
-                print("Error: la asignación no existe.")
+                if entrada.upper() == "CANCELAR":
+                    break
+
+                if entrada.upper() == "SALIR":
+                    return
+
+                if entrada == "<<":
+                    print("Estás en la selección de la asignación.")
+                    continue
+
+                try:
+                    id_seleccionado = int(entrada)
+
+                    if id_seleccionado in ids_disponibles:
+                        asignacion_id = id_seleccionado
+                        break
+
+                    print("Error: selecciona un ID de la tabla.")
+
+                except ValueError:
+                    print("Error: ingresa un ID numérico.")
+
+            if asignacion_id is None:
                 continue
 
-            if confirmar_eliminacion():
+            respuesta = confirmar_eliminacion()
+
+            if respuesta == "SALIR":
+                break
+
+            if respuesta is True:
                 GestionAsignacion.eliminar(asignacion_id)
 
         else:
@@ -924,6 +1541,8 @@ def mostrar_registros_tiempo():
 # SELECCIONAR EMPLEADO PARA REGISTRO DE TIEMPOS
 # ==================================================
 
+
+
 def seleccionar_empleado_tiempo():
     empleados = GestionEmpleado.consultar()
 
@@ -943,20 +1562,43 @@ def seleccionar_empleado_tiempo():
             f"{str(empleado[2]):<30}"
         )
 
+    print("-" * 60)
+
     ids_disponibles = [int(empleado[0]) for empleado in empleados]
 
     while True:
-        empleado_id = leer_entero("Ingrese el ID del empleado: ")
+        entrada = input(
+            "ID del empleado (CANCELAR o SALIR para volver): "
+        ).strip()
 
-        if empleado_id in ids_disponibles:
-            return empleado_id
+        if entrada.upper() == "CANCELAR":
+            print("Selección de empleado cancelada.")
+            return "CANCELAR"
 
-        print("Error: selecciona un ID de empleado de la lista.")
+        if entrada.upper() == "SALIR":
+            print("Volviendo al menú anterior.")
+            return "SALIR"
+
+        if entrada == "<<":
+            print("Estás en la selección del empleado.")
+            continue
+
+        try:
+            empleado_id = int(entrada)
+
+            if empleado_id in ids_disponibles:
+                return empleado_id
+
+            print("Error: selecciona un ID de la tabla.")
+
+        except ValueError:
+            print("Error: debes ingresar un número entero.")
 
 
 # ==================================================
 # SELECCIONAR PROYECTO ASIGNADO AL EMPLEADO
 # ==================================================
+
 
 def seleccionar_proyecto_tiempo(empleado_id):
     asignaciones = GestionAsignacion.consultar()
@@ -983,6 +1625,8 @@ def seleccionar_proyecto_tiempo(empleado_id):
             f"{str(asignacion[5] or 'Sin definir'):<20}"
         )
 
+    print("-" * 65)
+
     ids_disponibles = list(dict.fromkeys(
         int(asignacion[3]) for asignacion in proyectos
     ))
@@ -990,22 +1634,45 @@ def seleccionar_proyecto_tiempo(empleado_id):
     if len(ids_disponibles) == 1:
         proyecto_id = ids_disponibles[0]
         print(
-            f"\nSe seleccionó el único proyecto asignado: {proyecto_id}"
+            f"Solo hay un proyecto asignado. "
+            f"Se seleccionó el ID {proyecto_id}."
         )
         return proyecto_id
 
     while True:
-        proyecto_id = leer_entero("Ingrese el ID del proyecto: ")
+        entrada = input(
+            "ID del proyecto (CANCELAR o SALIR para volver): "
+        ).strip()
 
-        if proyecto_id in ids_disponibles:
-            return proyecto_id
+        if entrada.upper() == "CANCELAR":
+            print("Selección de proyecto cancelada.")
+            return "CANCELAR"
 
-        print("Error: selecciona un proyecto de la lista.")
+        if entrada.upper() == "SALIR":
+            print("Volviendo al menú anterior.")
+            return "SALIR"
+
+        if entrada == "<<":
+            print("Estás en la selección del proyecto.")
+            continue
+
+        try:
+            proyecto_id = int(entrada)
+
+            if proyecto_id in ids_disponibles:
+                return proyecto_id
+
+            print("Error: selecciona un proyecto de la tabla.")
+
+        except ValueError:
+            print("Error: debes ingresar un número entero.")
 
 
 # ==================================================
 # CRUD DE REGISTROS DE TIEMPO
 # ==================================================
+
+
 
 def menu_tiempos():
     while True:
@@ -1018,6 +1685,12 @@ def menu_tiempos():
 
         opcion = leer_entero("Seleccione una opción: ")
 
+        if opcion in ("CANCELAR", "SALIR"):
+            break
+
+        if opcion is None:
+            continue
+
         if opcion == 0:
             break
 
@@ -1027,66 +1700,70 @@ def menu_tiempos():
         elif opcion == 1:
             print("\n--- Registrar tiempo trabajado ---")
 
-            # Elegir un empleado que tenga proyectos asignados
-            while True:
-                empleado_id = seleccionar_empleado_tiempo()
+            empleado_id = seleccionar_empleado_tiempo()
 
-                if empleado_id is None:
-                    break
+            if empleado_id == "SALIR":
+                break
 
-                proyecto_id = seleccionar_proyecto_tiempo(empleado_id)
-
-                if proyecto_id is not None:
-                    break
-
-                print("\nPor favor, elija otro empleado.")
-                
-
-            if empleado_id is None or proyecto_id is None:
+            if empleado_id is None or empleado_id == "CANCELAR":
                 continue
 
-            fecha = leer_fecha("Fecha del trabajo (YYYY-MM-DD): ")
+            proyecto_id = seleccionar_proyecto_tiempo(empleado_id)
 
-            while True:
-                horas = leer_entero("Horas trabajadas: ")
+            if proyecto_id == "SALIR":
+                break
 
-                if horas > 0:
-                    break
+            if proyecto_id is None or proyecto_id == "CANCELAR":
+                continue
 
-                print("Error: las horas deben ser mayores que cero.")
+            datos = leer_formulario([
+                ("fecha", "Fecha (YYYY-MM-DD): ", "fecha", None),
+                (
+                    "horas",
+                    "Horas trabajadas: ",
+                    "entero",
+                    validar_positivo
+                ),
+                (
+                    "descripcion",
+                    "Descripción del trabajo: ",
+                    "texto",
+                    None
+                ),
+            ])
 
-            descripcion = leer_texto("Descripción del trabajo: ")
+            if datos == "SALIR":
+                break
+
+            if datos == "CANCELAR":
+                continue
 
             print("\n========== RESUMEN DEL REGISTRO ==========")
             print(f"Empleado ID: {empleado_id}")
             print(f"Proyecto ID: {proyecto_id}")
-            print(f"Fecha: {fecha}")
-            print(f"Horas: {horas}")
-            print(f"Descripción: {descripcion}")
+            print(f"Fecha: {datos['fecha']}")
+            print(f"Horas: {datos['horas']}")
+            print(f"Descripción: {datos['descripcion']}")
 
-            registro = RegistroTiempo(
-                empleado_id=empleado_id,
-                proyecto_id=proyecto_id,
-                fecha=fecha,
-                horas=horas,
-                descripcion=descripcion
+            respuesta = confirmar_operacion(
+                "¿Confirma que desea guardar este registro?"
             )
 
-            while True:
-                respuesta = input(
-                    "\n¿Confirma que desea guardar este registro? (sí/no): "
-                ).strip().lower()
+            if respuesta == "SALIR":
+                break
 
-                if respuesta in ("si", "sí", "s"):
-                    GestionTiempo.insertar(registro)
-                    break
+            if respuesta == "CANCELAR":
+                continue
 
-                elif respuesta in ("no", "n"):
-                    print("Registro cancelado.")
-                    break
-
-                else:
-                    print("Respuesta no válida. Escribe sí o no.")
+            if respuesta is True:
+                registro = RegistroTiempo(
+                    empleado_id=empleado_id,
+                    proyecto_id=proyecto_id,
+                    fecha=datos["fecha"],
+                    horas=datos["horas"],
+                    descripcion=datos["descripcion"]
+                )
+                GestionTiempo.insertar(registro)
 
         # ------------------------------------------
         # CONSULTAR
@@ -1110,80 +1787,83 @@ def menu_tiempos():
                 int(registro[0]) for registro in registros
             ]
 
-            while True:
-                registro_id = leer_entero(
-                    "ID del registro que deseas modificar: "
-                )
+            registro_id = seleccionar_id(
+                "ID del registro que deseas modificar: ",
+                ids_disponibles
+            )
 
-                if registro_id in ids_disponibles:
-                    break
+            if registro_id == "SALIR":
+                break
 
-                print("Error: selecciona un ID de la tabla.")
-
-            # Elegir un empleado que tenga proyectos asignados
-            while True:
-                empleado_id = seleccionar_empleado_tiempo()
-
-                if empleado_id is None:
-                    break
-
-                proyecto_id = seleccionar_proyecto_tiempo(empleado_id)
-
-                if proyecto_id is not None:
-                    break
-
-                print(
-                    "\nEl ID seleccionado no está asignado a ningún proyecto."
-                )
-                print("Por favor, elija otro empleado.\n")
-
-            if empleado_id is None or proyecto_id is None:
+            if registro_id in (None, "CANCELAR"):
                 continue
 
-            fecha = leer_fecha("Nueva fecha (YYYY-MM-DD): ")
+            empleado_id = seleccionar_empleado_tiempo()
 
-            while True:
-                horas = leer_entero("Nuevas horas trabajadas: ")
+            if empleado_id == "SALIR":
+                break
 
-                if horas > 0:
-                    break
+            if empleado_id is None or empleado_id == "CANCELAR":
+                continue
 
-                print("Error: las horas deben ser mayores que cero.")
+            proyecto_id = seleccionar_proyecto_tiempo(empleado_id)
 
-            descripcion = leer_texto("Nueva descripción: ")
+            if proyecto_id == "SALIR":
+                break
+
+            if proyecto_id is None or proyecto_id == "CANCELAR":
+                continue
+
+            datos = leer_formulario([
+                ("fecha", "Nueva fecha (YYYY-MM-DD): ", "fecha", None),
+                (
+                    "horas",
+                    "Nuevas horas trabajadas: ",
+                    "entero",
+                    validar_positivo
+                ),
+                (
+                    "descripcion",
+                    "Nueva descripción: ",
+                    "texto",
+                    None
+                ),
+            ])
+
+            if datos == "SALIR":
+                break
+
+            if datos == "CANCELAR":
+                continue
 
             print("\n========== RESUMEN DE LA MODIFICACIÓN ==========")
             print(f"ID del registro: {registro_id}")
             print(f"Empleado ID: {empleado_id}")
             print(f"Proyecto ID: {proyecto_id}")
-            print(f"Fecha: {fecha}")
-            print(f"Horas: {horas}")
-            print(f"Descripción: {descripcion}")
+            print(f"Fecha: {datos['fecha']}")
+            print(f"Horas: {datos['horas']}")
+            print(f"Descripción: {datos['descripcion']}")
 
-            registro = RegistroTiempo(
-                empleado_id=empleado_id,
-                proyecto_id=proyecto_id,
-                fecha=fecha,
-                horas=horas,
-                descripcion=descripcion,
-                user_id=registro_id
+            respuesta = confirmar_operacion(
+                "¿Confirma que desea guardar los cambios?"
             )
 
-            while True:
-                respuesta = input(
-                    "\n¿Confirma que desea guardar los cambios? (sí/no): "
-                ).strip().lower()
+            if respuesta == "SALIR":
+                break
 
-                if respuesta in ("si", "sí", "s"):
-                    GestionTiempo.modificar(registro)
-                    break
+            if respuesta == "CANCELAR":
+                continue
 
-                elif respuesta in ("no", "n"):
-                    print("Modificación cancelada.")
-                    break
-
-                else:
-                    print("Respuesta no válida. Escribe sí o no.")
+            if respuesta is True:
+                registro = RegistroTiempo(
+                    empleado_id=empleado_id,
+                    proyecto_id=proyecto_id,
+                    fecha=datos["fecha"],
+                    horas=datos["horas"],
+                    descripcion=datos["descripcion"],
+                    user_id=registro_id
+                )
+                GestionTiempo.modificar(registro)
 
         # ------------------------------------------
         # ELIMINAR
@@ -1200,26 +1880,61 @@ def menu_tiempos():
                 int(registro[0]) for registro in registros
             ]
 
-            while True:
-                registro_id = leer_entero(
-                    "ID del registro que deseas eliminar: "
-                )
+            registro_id = seleccionar_id(
+                "ID del registro que deseas eliminar: ",
+                ids_disponibles
+            )
 
-                if registro_id in ids_disponibles:
-                    break
+            if registro_id == "SALIR":
+                break
 
-                print("Error: selecciona un ID de la tabla.")
+            if registro_id in (None, "CANCELAR"):
+                continue
 
-            if confirmar_eliminacion():
+            respuesta = confirmar_eliminacion()
+
+            if respuesta == "SALIR":
+                break
+
+            if respuesta is True:
                 GestionTiempo.eliminar(registro_id)
 
         else:
             print("Error: opción no válida.")
 
 
+def seleccionar_id(mensaje, ids_disponibles):
+    while True:
+        entrada = input(
+            f"{mensaje} (CANCELAR o SALIR para volver): "
+        ).strip()
+
+        if entrada.upper() == "CANCELAR":
+            return "CANCELAR"
+
+        if entrada.upper() == "SALIR":
+            return "SALIR"
+
+        if entrada == "<<":
+            print("Estás en la selección del ID.")
+            continue
+
+        try:
+            identificador = int(entrada)
+
+            if identificador in ids_disponibles:
+                return identificador
+
+            print("Error: selecciona un ID de la tabla.")
+
+        except ValueError:
+            print("Error: debes ingresar un número entero.")
+
+
 # ==================================================
 # MENÚ PRINCIPAL
 # ==================================================
+
 
 def menu():
     while True:
@@ -1232,6 +1947,18 @@ def menu():
         print("0. Salir")
 
         opcion = leer_entero("Seleccione una opción: ")
+
+        if opcion in ("CANCELAR", "SALIR"):
+            print("Volviendo al menú principal.")
+
+            if opcion == "SALIR":
+                print("Hasta luego.")
+                break
+
+            continue
+
+        if opcion is None:
+            continue
 
         if opcion == 0:
             print("Hasta luego.")
