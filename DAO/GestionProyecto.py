@@ -31,13 +31,13 @@ def insertar(proyecto):
         conexion.commit()
 
         print(
-            f"Proyecto registrado correctamente. "
+            "Proyecto registrado correctamente. "
             f"ID: {proyecto.user_id}"
         )
 
-    except Exception:
+    except Exception as e:
         conexion.rollback()
-        print("No fue posible registrar el proyecto.")
+        print("Error al registrar proyecto:", e)
 
     finally:
         if cursor:
@@ -70,8 +70,8 @@ def consultar():
         cursor.execute(sql)
         return cursor.fetchall()
 
-    except Exception:
-        print("No fue posible consultar los proyectos.")
+    except Exception as e:
+        print("Error al consultar proyectos:", e)
         return []
 
     finally:
@@ -91,6 +91,16 @@ def modificar(proyecto):
 
     try:
         cursor = conexion.cursor()
+
+        # Comprobar que el proyecto exista.
+        cursor.execute(
+            "SELECT user_id FROM proyecto WHERE user_id = %s",
+            (proyecto.user_id,)
+        )
+
+        if not cursor.fetchone():
+            print("Error: el proyecto seleccionado no existe.")
+            return
 
         sql = """
             UPDATE proyecto
@@ -114,14 +124,11 @@ def modificar(proyecto):
             print("Proyecto modificado correctamente.")
         else:
             conexion.rollback()
-            print(
-                "No se encontró el proyecto "
-                "o no se realizaron cambios."
-            )
+            print("No se detectaron cambios en el proyecto.")
 
-    except Exception:
+    except Exception as e:
         conexion.rollback()
-        print("No fue posible modificar el proyecto.")
+        print("Error al modificar proyecto:", e)
 
     finally:
         if cursor:
@@ -141,30 +148,64 @@ def eliminar(user_id):
     try:
         cursor = conexion.cursor()
 
-        sql = """
-            DELETE FROM proyecto
-            WHERE user_id = %s
-        """
+        # Comprobar que el proyecto exista.
+        cursor.execute(
+            "SELECT user_id FROM proyecto WHERE user_id = %s",
+            (user_id,)
+        )
 
-        cursor.execute(sql, (user_id,))
+        if not cursor.fetchone():
+            print("No existe un proyecto con ese ID.")
+            return
+
+        # Comprobar las asignaciones asociadas.
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM asignacion_emp
+            WHERE proyecto_id = %s
+            """,
+            (user_id,)
+        )
+        asignaciones = cursor.fetchone()[0]
+
+        # Comprobar los registros de tiempo asociados.
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM registro_tiempo
+            WHERE proyecto_id = %s
+            """,
+            (user_id,)
+        )
+        registros_tiempo = cursor.fetchone()[0]
+
+        if asignaciones > 0 or registros_tiempo > 0:
+            print(
+                "\nNo se puede eliminar el proyecto porque tiene "
+                "asignaciones o registros de tiempo asociados."
+            )
+            print(
+                "Gestiona primero esos registros para evitar "
+                "la pérdida de información."
+            )
+            return
+
+        cursor.execute(
+            "DELETE FROM proyecto WHERE user_id = %s",
+            (user_id,)
+        )
 
         if cursor.rowcount > 0:
             conexion.commit()
             print("Proyecto eliminado correctamente.")
         else:
             conexion.rollback()
-            print("No existe un proyecto con ese ID.") 
+            print("No existe un proyecto con ese ID.")
 
     except Exception as e:
         conexion.rollback()
-
-        if e.args and e.args[0] == 1451:
-            print(
-                "No se puede eliminar el proyecto porque "
-                "tiene asignaciones o registros asociados."
-            )
-        else:
-            print("No fue posible eliminar el proyecto.")
+        print("Error al eliminar proyecto:", e)
 
     finally:
         if cursor:
@@ -193,8 +234,8 @@ def consultar_empleados():
         cursor.execute(sql)
         return cursor.fetchall()
 
-    except Exception:
-        print("No fue posible consultar los empleados.")
+    except Exception as e:
+        print("Error al consultar empleados:", e)
         return []
 
     finally:
@@ -232,10 +273,8 @@ def consultar_por_empleado(empleado_id):
         cursor.execute(sql, (empleado_id,))
         return cursor.fetchall()
 
-    except Exception:
-        print(
-            "No fue posible consultar los proyectos del empleado."
-        )
+    except Exception as e:
+        print("Error al consultar proyectos por empleado:", e)
         return []
 
     finally:

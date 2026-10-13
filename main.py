@@ -17,6 +17,84 @@ from DAO import GestionTiempo
 # NAVEGACIÓN Y VALIDACIÓN DE DATOS
 # ==================================================
 
+def validar_run_disponible(valor):
+    run = str(valor).strip().upper()
+
+    conexion = None
+    cursor = None
+
+    try:
+        from DAO.Conexion import conectar
+
+        conexion = conectar()
+
+        if not conexion:
+            return "No fue posible conectar con la base de datos."
+
+        cursor = conexion.cursor()
+
+        cursor.execute(
+            "SELECT user_id FROM empleado WHERE run = %s",
+            (run,)
+        )
+
+        if cursor.fetchone():
+            return "Ya existe un empleado con ese RUN."
+
+        return None
+
+    except Exception as e:
+        return f"No se pudo validar el RUN: {e}"
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if conexion:
+            conexion.close()
+
+def validar_run_modificacion(valor, user_id):
+    run = str(valor).strip().upper()
+
+    conexion = None
+    cursor = None
+
+    try:
+        from DAO.Conexion import conectar
+
+        conexion = conectar()
+
+        if not conexion:
+            return "No fue posible conectar con la base de datos."
+
+        cursor = conexion.cursor()
+
+        cursor.execute(
+            """
+            SELECT user_id
+            FROM empleado
+            WHERE run = %s
+              AND user_id <> %s
+            """,
+            (run, user_id)
+        )
+
+        if cursor.fetchone():
+            return "Ya existe otro empleado con ese RUN."
+
+        return None
+
+    except Exception as e:
+        return f"No se pudo validar el RUN: {e}"
+
+    finally:
+        if cursor:
+            cursor.close()
+
+        if conexion:
+            conexion.close()
+
+
 def leer_formulario(campos):
     """
     Lee los campos de un formulario y permite:
@@ -97,6 +175,22 @@ def validar_positivo(valor):
 def validar_no_negativo(valor):
     if valor < 0:
         return "El valor no puede ser negativo."
+    return None
+
+
+def validar_correo(valor):
+    valor = str(valor).strip()
+
+    if (
+        not valor
+        or " " in valor
+        or "@" not in valor
+        or valor.startswith("@")
+        or valor.endswith("@")
+        or "." not in valor.split("@")[-1]
+    ):
+        return "Ingresa un correo válido, por ejemplo usuario@correo.cl."
+
     return None
 
 
@@ -697,7 +791,7 @@ def menu_empleados():
                 break
 
             datos = leer_formulario([
-                ("run", "RUN: ", "texto", None),
+                ("run", "RUN: ", "texto", validar_run_disponible),
                 ("nombre", "Nombre: ", "texto", None),
                 ("direccion", "Dirección: ", "texto", None),
                 (
@@ -706,7 +800,7 @@ def menu_empleados():
                     "entero",
                     validar_no_negativo
                 ),
-                ("correo", "Correo: ", "texto", None),
+                ("correo", "Correo: ", "texto", validar_correo),
                 (
                     "fecha_inicio",
                     "Fecha de inicio (YYYY-MM-DD): ",
@@ -801,7 +895,8 @@ def menu_empleados():
                 break
 
             datos = leer_formulario([
-                ("run", "Nuevo RUN: ", "texto", None),
+                ("run", "Nuevo RUN: ", "texto",
+                lambda valor: validar_run_modificacion(valor, user_id)),
                 ("nombre", "Nuevo nombre: ", "texto", None),
                 ("direccion", "Nueva dirección: ", "texto", None),
                 (
@@ -810,7 +905,7 @@ def menu_empleados():
                     "entero",
                     validar_no_negativo
                 ),
-                ("correo", "Nuevo correo: ", "texto", None),
+                ("correo", "Nuevo correo: ", "texto", validar_correo),                
                 (
                     "fecha_inicio",
                     "Nueva fecha de inicio (YYYY-MM-DD): ",

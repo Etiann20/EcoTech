@@ -1,3 +1,4 @@
+
 from DAO.Conexion import conectar
 from DTO.Empleado import Empleado
 
@@ -5,177 +6,297 @@ from DTO.Empleado import Empleado
 def insertar(empleado):
     conexion = conectar()
 
-    if conexion:
-        cursor = None
+    if not conexion:
+        print("No fue posible conectar con la base de datos.")
+        return
 
-        try:
-            cursor = conexion.cursor()
+    cursor = None
 
-            sql = """
-                INSERT INTO empleado
-                (
-                    run,
-                    nombre,
-                    direccion,
-                    telefono,
-                    correo,
-                    fecha_inicio,
-                    salario,
-                    departamento_id
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """
+    try:
+        cursor = conexion.cursor()
 
-            datos = (
-                empleado.run,
-                empleado.nombre,
-                empleado.direccion,
-                empleado.telefono,
-                empleado.correo,
-                empleado.fecha_inicio,
-                empleado.salario,
-                empleado.departamento_id
+        # Normalizar el RUN para evitar diferencias por espacios.
+        run = str(empleado.run).strip().upper()
+
+        if not run:
+            print("Error: el RUN no puede estar vacío.")
+            return
+
+        # Validar que el RUN no esté registrado.
+        cursor.execute(
+            "SELECT user_id FROM empleado WHERE run = %s",
+            (run,)
+        )
+
+        if cursor.fetchone():
+            print("Error: ya existe un empleado con ese RUN.")
+            return
+
+        # Comprobar que el departamento exista.
+        cursor.execute(
+            "SELECT user_id FROM departamento WHERE user_id = %s",
+            (empleado.departamento_id,)
+        )
+
+        if not cursor.fetchone():
+            print("Error: el departamento seleccionado no existe.")
+            return
+
+        sql = """
+            INSERT INTO empleado
+            (
+                run,
+                nombre,
+                direccion,
+                telefono,
+                correo,
+                fecha_inicio,
+                salario,
+                departamento_id
             )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """
 
-            cursor.execute(sql, datos)
+        datos = (
+            run,
+            empleado.nombre,
+            empleado.direccion,
+            empleado.telefono,
+            empleado.correo,
+            empleado.fecha_inicio,
+            empleado.salario,
+            empleado.departamento_id
+        )
 
-            empleado.user_id = cursor.lastrowid
+        cursor.execute(sql, datos)
+        empleado.user_id = cursor.lastrowid
+        conexion.commit()
 
-            conexion.commit()
+        print(
+            "Empleado registrado correctamente. "
+            f"ID: {empleado.user_id}"
+        )
 
-            print("Empleado registrado correctamente.")
+    except Exception as e:
+        conexion.rollback()
+        print("Error al registrar empleado:", e)
 
-        except Exception as e:
-            conexion.rollback()
-            print("Error al registrar empleado:", e)
-
-        finally:
-            if cursor:
-                cursor.close()
-            conexion.close()
+    finally:
+        if cursor:
+            cursor.close()
+        conexion.close()
 
 
 def consultar():
     conexion = conectar()
 
-    if conexion:
-        cursor = None
+    if not conexion:
+        print("No fue posible conectar con la base de datos.")
+        return []
 
-        try:
-            cursor = conexion.cursor()
+    cursor = None
 
-            sql = """
-                SELECT
-                    user_id,
-                    run,
-                    nombre,
-                    direccion,
-                    telefono,
-                    correo,
-                    fecha_inicio,
-                    salario,
-                    departamento_id
-                FROM empleado
-                ORDER BY user_id
-            """
+    try:
+        cursor = conexion.cursor()
 
-            cursor.execute(sql)
-            resultados = cursor.fetchall()
+        sql = """
+            SELECT
+                user_id,
+                run,
+                nombre,
+                direccion,
+                telefono,
+                correo,
+                fecha_inicio,
+                salario,
+                departamento_id
+            FROM empleado
+            ORDER BY user_id
+        """
 
-            return resultados
+        cursor.execute(sql)
+        return cursor.fetchall()
 
-        except Exception as e:
-            print("Error al consultar empleados:", e)
-            return []
+    except Exception as e:
+        print("Error al consultar empleados:", e)
+        return []
 
-        finally:
-            if cursor:
-                cursor.close()
-            conexion.close()
+    finally:
+        if cursor:
+            cursor.close()
+        conexion.close()
 
 
 def modificar(empleado):
     conexion = conectar()
 
-    if conexion:
-        cursor = None
+    if not conexion:
+        print("No fue posible conectar con la base de datos.")
+        return
 
-        try:
-            cursor = conexion.cursor()
+    cursor = None
 
-            sql = """
-                UPDATE empleado
-                SET
-                    run = %s,
-                    nombre = %s,
-                    direccion = %s,
-                    telefono = %s,
-                    correo = %s,
-                    fecha_inicio = %s,
-                    salario = %s,
-                    departamento_id = %s
-                WHERE user_id = %s
+    try:
+        cursor = conexion.cursor()
+
+        run = str(empleado.run).strip().upper()
+
+        if not run:
+            print("Error: el RUN no puede estar vacío.")
+            return
+
+        # Comprobar que el empleado exista.
+        cursor.execute(
+            "SELECT user_id FROM empleado WHERE user_id = %s",
+            (empleado.user_id,)
+        )
+
+        if not cursor.fetchone():
+            print("Error: el empleado que intentas modificar no existe.")
+            return
+
+        # Comprobar que el RUN no pertenezca a otro empleado.
+        cursor.execute(
             """
+            SELECT user_id
+            FROM empleado
+            WHERE run = %s
+              AND user_id != %s
+            """,
+            (run, empleado.user_id)
+        )
 
-            datos = (
-                empleado.run,
-                empleado.nombre,
-                empleado.direccion,
-                empleado.telefono,
-                empleado.correo,
-                empleado.fecha_inicio,
-                empleado.salario,
-                empleado.departamento_id,
-                empleado.user_id
-            )
+        if cursor.fetchone():
+            print("Error: ese RUN ya pertenece a otro empleado.")
+            return
 
-            cursor.execute(sql, datos)
+        # Comprobar que el departamento exista.
+        cursor.execute(
+            "SELECT user_id FROM departamento WHERE user_id = %s",
+            (empleado.departamento_id,)
+        )
 
-            if cursor.rowcount > 0:
-                conexion.commit()
-                print("Empleado modificado correctamente.")
-            else:
-                conexion.rollback()
-                print("No se encontró el empleado o no hubo cambios.")
+        if not cursor.fetchone():
+            print("Error: el departamento seleccionado no existe.")
+            return
 
-        except Exception as e:
+        sql = """
+            UPDATE empleado
+            SET
+                run = %s,
+                nombre = %s,
+                direccion = %s,
+                telefono = %s,
+                correo = %s,
+                fecha_inicio = %s,
+                salario = %s,
+                departamento_id = %s
+            WHERE user_id = %s
+        """
+
+        datos = (
+            run,
+            empleado.nombre,
+            empleado.direccion,
+            empleado.telefono,
+            empleado.correo,
+            empleado.fecha_inicio,
+            empleado.salario,
+            empleado.departamento_id,
+            empleado.user_id
+        )
+
+        cursor.execute(sql, datos)
+
+        if cursor.rowcount > 0:
+            conexion.commit()
+            print("Empleado modificado correctamente.")
+        else:
             conexion.rollback()
-            print("Error al modificar empleado:", e)
+            print("No se detectaron cambios en el empleado.")
 
-        finally:
-            if cursor:
-                cursor.close()
-            conexion.close()
+    except Exception as e:
+        conexion.rollback()
+        print("Error al modificar empleado:", e)
+
+    finally:
+        if cursor:
+            cursor.close()
+        conexion.close()
 
 
 def eliminar(user_id):
     conexion = conectar()
 
-    if conexion:
-        cursor = None
+    if not conexion:
+        print("No fue posible conectar con la base de datos.")
+        return
 
-        try:
-            cursor = conexion.cursor()
+    cursor = None
 
-            sql = """
-                DELETE FROM empleado
-                WHERE user_id = %s
+    try:
+        cursor = conexion.cursor()
+
+        # Verificar que el empleado exista.
+        cursor.execute(
+            "SELECT user_id FROM empleado WHERE user_id = %s",
+            (user_id,)
+        )
+
+        if not cursor.fetchone():
+            print("No existe un empleado con ese ID.")
+            return
+
+        # Comprobar asignaciones asociadas.
+        cursor.execute(
             """
+            SELECT COUNT(*)
+            FROM asignacion_emp
+            WHERE empleado_id = %s
+            """,
+            (user_id,)
+        )
+        asignaciones = cursor.fetchone()[0]
 
-            cursor.execute(sql, (user_id,))
+        # Comprobar registros de tiempo asociados.
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM registro_tiempo
+            WHERE empleado_id = %s
+            """,
+            (user_id,)
+        )
+        registros_tiempo = cursor.fetchone()[0]
 
-            if cursor.rowcount > 0:
-                conexion.commit()
-                print("Empleado eliminado correctamente.")
-            else:
-                conexion.rollback()
-                print("No existe un empleado con ese ID.")
+        if asignaciones > 0 or registros_tiempo > 0:
+            print(
+                "\nNo se puede eliminar el empleado porque tiene "
+                "asignaciones o registros de tiempo asociados."
+            )
+            print(
+                "Gestiona primero esos registros para evitar "
+                "perder información."
+            )
+            return
 
-        except Exception as e:
+        cursor.execute(
+            "DELETE FROM empleado WHERE user_id = %s",
+            (user_id,)
+        )
+
+        if cursor.rowcount > 0:
+            conexion.commit()
+            print("Empleado eliminado correctamente.")
+        else:
             conexion.rollback()
-            print("Error al eliminar empleado:", e)
+            print("No existe un empleado con ese ID.")
 
-        finally:
-            if cursor:
-                cursor.close()
-            conexion.close()
+    except Exception as e:
+        conexion.rollback()
+        print("Error al eliminar empleado:", e)
+
+    finally:
+        if cursor:
+            cursor.close()
+        conexion.close()

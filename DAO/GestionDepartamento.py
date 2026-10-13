@@ -1,6 +1,5 @@
 
 from DAO.Conexion import conectar
-import pymysql
 
 
 def insertar(departamento):
@@ -15,34 +14,41 @@ def insertar(departamento):
     try:
         cursor = conexion.cursor()
 
-        sql = """
+        # Validar el gerente si se ha seleccionado uno.
+        if departamento.gerente_empleado_id is not None:
+            cursor.execute(
+                "SELECT user_id FROM empleado WHERE user_id = %s",
+                (departamento.gerente_empleado_id,)
+            )
+
+            if not cursor.fetchone():
+                print("Error: el gerente seleccionado no existe.")
+                return
+
+        cursor.execute(
+            """
             INSERT INTO departamento
                 (nombre, gerente_empleado_id, descripcion)
             VALUES (%s, %s, %s)
-        """
-
-        datos = (
-            departamento.nombre,
-            departamento.gerente_empleado_id,
-            departamento.descripcion
+            """,
+            (
+                departamento.nombre,
+                departamento.gerente_empleado_id,
+                departamento.descripcion
+            )
         )
 
-        cursor.execute(sql, datos)
         departamento.user_id = cursor.lastrowid
         conexion.commit()
 
         print(
-            f"Departamento registrado correctamente. "
+            "Departamento registrado correctamente. "
             f"ID: {departamento.user_id}"
         )
 
-    except pymysql.MySQLError:
+    except Exception as e:
         conexion.rollback()
-        print("No fue posible registrar el departamento. Verifica los datos e inténtalo nuevamente.")
-
-    except Exception:
-        conexion.rollback()
-        print("Ocurrió un error inesperado al registrar el departamento.")
+        print("Error al registrar departamento:", e)
 
     finally:
         if cursor:
@@ -62,7 +68,8 @@ def consultar():
     try:
         cursor = conexion.cursor()
 
-        sql = """
+        cursor.execute(
+            """
             SELECT
                 user_id,
                 nombre,
@@ -70,13 +77,13 @@ def consultar():
                 descripcion
             FROM departamento
             ORDER BY user_id
-        """
+            """
+        )
 
-        cursor.execute(sql)
         return cursor.fetchall()
 
-    except Exception:
-        print("No fue posible consultar los departamentos.")
+    except Exception as e:
+        print("Error al consultar departamentos:", e)
         return []
 
     finally:
@@ -97,40 +104,53 @@ def modificar(departamento):
     try:
         cursor = conexion.cursor()
 
-        sql = """
+        # Validar que el departamento exista.
+        cursor.execute(
+            "SELECT user_id FROM departamento WHERE user_id = %s",
+            (departamento.user_id,)
+        )
+
+        if not cursor.fetchone():
+            print("Error: el departamento seleccionado no existe.")
+            return
+
+        # Validar el gerente si se ha seleccionado uno.
+        if departamento.gerente_empleado_id is not None:
+            cursor.execute(
+                "SELECT user_id FROM empleado WHERE user_id = %s",
+                (departamento.gerente_empleado_id,)
+            )
+
+            if not cursor.fetchone():
+                print("Error: el gerente seleccionado no existe.")
+                return
+
+        cursor.execute(
+            """
             UPDATE departamento
             SET nombre = %s,
                 gerente_empleado_id = %s,
                 descripcion = %s
             WHERE user_id = %s
-        """
-
-        datos = (
-            departamento.nombre,
-            departamento.gerente_empleado_id,
-            departamento.descripcion,
-            departamento.user_id
+            """,
+            (
+                departamento.nombre,
+                departamento.gerente_empleado_id,
+                departamento.descripcion,
+                departamento.user_id
+            )
         )
-
-        cursor.execute(sql, datos)
 
         if cursor.rowcount > 0:
             conexion.commit()
             print("Departamento modificado correctamente.")
         else:
             conexion.rollback()
-            print(
-                "No se encontró el departamento "
-                "o no se realizaron cambios."
-            )
+            print("No se detectaron cambios en el departamento.")
 
-    except pymysql.MySQLError:
+    except Exception as e:
         conexion.rollback()
-        print("No fue posible modificar el departamento. Verifica los datos e inténtalo nuevamente.")
-
-    except Exception:
-        conexion.rollback()
-        print("Ocurrió un error inesperado al modificar el departamento.")
+        print("Error al modificar departamento:", e)
 
     finally:
         if cursor:
@@ -150,34 +170,48 @@ def eliminar(user_id):
     try:
         cursor = conexion.cursor()
 
-        sql = """
-            DELETE FROM departamento
-            WHERE user_id = %s
-        """
+        cursor.execute(
+            "SELECT user_id FROM departamento WHERE user_id = %s",
+            (user_id,)
+        )
 
-        cursor.execute(sql, (user_id,))
+        if not cursor.fetchone():
+            print("No existe un departamento con ese ID.")
+            return
+
+        # Evitar eliminar departamentos con empleados asociados.
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM empleado
+            WHERE departamento_id = %s
+            """,
+            (user_id,)
+        )
+
+        if cursor.fetchone()[0] > 0:
+            print(
+                "\nNo se puede eliminar el departamento porque "
+                "tiene empleados asociados."
+            )
+            print("Reasigna primero esos empleados a otro departamento.")
+            return
+
+        cursor.execute(
+            "DELETE FROM departamento WHERE user_id = %s",
+            (user_id,)
+        )
 
         if cursor.rowcount > 0:
             conexion.commit()
             print("Departamento eliminado correctamente.")
         else:
             conexion.rollback()
-            print("No existe un departamento con ese ID.")
+            print("No se pudo eliminar el departamento.")
 
-    except pymysql.MySQLError as e:
+    except Exception as e:
         conexion.rollback()
-
-        if e.args and e.args[0] == 1451:
-            print(
-                "\nNo se puede eliminar el departamento porque "
-                "tiene empleados asociados."
-            )
-        else:
-            print("No fue posible eliminar el departamento.")
-
-    except Exception:
-        conexion.rollback()
-        print("Ocurrió un error inesperado al eliminar el departamento.")
+        print("Error al eliminar departamento:", e)
 
     finally:
         if cursor:

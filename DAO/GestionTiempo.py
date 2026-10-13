@@ -1,10 +1,53 @@
+
 from DAO.Conexion import conectar
-from DTO.RegistroTiempo import RegistroTiempo
 
 
-# ==================================================
-# REGISTRAR TIEMPO
-# ==================================================
+def validar_asignacion(cursor, empleado_id, proyecto_id):
+    """Comprueba empleado, proyecto y asignación entre ambos."""
+
+    cursor.execute(
+        "SELECT user_id FROM empleado WHERE user_id = %s",
+        (empleado_id,)
+    )
+    if not cursor.fetchone():
+        print("Error: el empleado seleccionado no existe.")
+        return False
+
+    cursor.execute(
+        "SELECT user_id FROM proyecto WHERE user_id = %s",
+        (proyecto_id,)
+    )
+    if not cursor.fetchone():
+        print("Error: el proyecto seleccionado no existe.")
+        return False
+
+    cursor.execute(
+        """
+        SELECT asignacion_id
+        FROM asignacion_emp
+        WHERE empleado_id = %s AND proyecto_id = %s
+        """,
+        (empleado_id, proyecto_id)
+    )
+
+    if not cursor.fetchone():
+        print("Error: el empleado no está asignado a este proyecto.")
+        return False
+
+    return True
+
+
+def validar_horas(horas):
+    try:
+        if int(horas) <= 0:
+            print("Error: las horas trabajadas deben ser mayores que cero.")
+            return False
+    except (TypeError, ValueError):
+        print("Error: las horas deben ser un número entero válido.")
+        return False
+
+    return True
+
 
 def insertar(registro):
     conexion = conectar()
@@ -18,46 +61,38 @@ def insertar(registro):
     try:
         cursor = conexion.cursor()
 
-        # Verificar que el empleado esté asignado al proyecto
-        sql_validacion = """
-            SELECT asignacion_id
-            FROM asignacion_emp
-            WHERE empleado_id = %s
-              AND proyecto_id = %s
-        """
-
-        cursor.execute(
-            sql_validacion,
-            (registro.empleado_id, registro.proyecto_id)
-        )
-
-        if cursor.fetchone() is None:
-            print(
-                "Error: el empleado no está asignado a este proyecto."
-            )
+        if not validar_horas(registro.horas):
             return False
 
-        sql = """
-            INSERT INTO registro_tiempo
-            (empleado_id, proyecto_id, fecha, horas, descripcion)
-            VALUES (%s, %s, %s, %s, %s)
-        """
-
-        datos = (
+        if not validar_asignacion(
+            cursor,
             registro.empleado_id,
-            registro.proyecto_id,
-            registro.fecha,
-            registro.horas,
-            registro.descripcion
+            registro.proyecto_id
+        ):
+            return False
+
+        cursor.execute(
+            """
+            INSERT INTO registro_tiempo
+                (empleado_id, proyecto_id, fecha, horas, descripcion)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (
+                registro.empleado_id,
+                registro.proyecto_id,
+                registro.fecha,
+                registro.horas,
+                registro.descripcion
+            )
         )
 
-        cursor.execute(sql, datos)
-
         registro.user_id = cursor.lastrowid
-
         conexion.commit()
 
-        print("Registro de tiempo creado correctamente.")
+        print(
+            "Registro de tiempo creado correctamente. "
+            f"ID: {registro.user_id}"
+        )
         return True
 
     except Exception as e:
@@ -70,10 +105,6 @@ def insertar(registro):
             cursor.close()
         conexion.close()
 
-
-# ==================================================
-# CONSULTAR REGISTROS DE TIEMPO
-# ==================================================
 
 def consultar():
     conexion = conectar()
@@ -97,10 +128,10 @@ def consultar():
                 rt.fecha,
                 rt.horas,
                 rt.descripcion
-            FROM registro_tiempo rt
-            INNER JOIN empleado e
+            FROM registro_tiempo AS rt
+            LEFT JOIN empleado AS e
                 ON rt.empleado_id = e.user_id
-            INNER JOIN proyecto p
+            LEFT JOIN proyecto AS p
                 ON rt.proyecto_id = p.user_id
             ORDER BY rt.user_id
         """
@@ -118,10 +149,6 @@ def consultar():
         conexion.close()
 
 
-# ==================================================
-# MODIFICAR REGISTRO DE TIEMPO
-# ==================================================
-
 def modificar(registro):
     conexion = conectar()
 
@@ -134,26 +161,28 @@ def modificar(registro):
     try:
         cursor = conexion.cursor()
 
-        # Comprobar que la asignación exista
-        sql_validacion = """
-            SELECT asignacion_id
-            FROM asignacion_emp
-            WHERE empleado_id = %s
-              AND proyecto_id = %s
-        """
-
+        # Verificar que el registro exista.
         cursor.execute(
-            sql_validacion,
-            (registro.empleado_id, registro.proyecto_id)
+            "SELECT user_id FROM registro_tiempo WHERE user_id = %s",
+            (registro.user_id,)
         )
 
-        if cursor.fetchone() is None:
-            print(
-                "Error: el empleado no está asignado a este proyecto."
-            )
+        if not cursor.fetchone():
+            print("Error: el registro de tiempo no existe.")
             return False
 
-        sql = """
+        if not validar_horas(registro.horas):
+            return False
+
+        if not validar_asignacion(
+            cursor,
+            registro.empleado_id,
+            registro.proyecto_id
+        ):
+            return False
+
+        cursor.execute(
+            """
             UPDATE registro_tiempo
             SET empleado_id = %s,
                 proyecto_id = %s,
@@ -161,18 +190,16 @@ def modificar(registro):
                 horas = %s,
                 descripcion = %s
             WHERE user_id = %s
-        """
-
-        datos = (
-            registro.empleado_id,
-            registro.proyecto_id,
-            registro.fecha,
-            registro.horas,
-            registro.descripcion,
-            registro.user_id
+            """,
+            (
+                registro.empleado_id,
+                registro.proyecto_id,
+                registro.fecha,
+                registro.horas,
+                registro.descripcion,
+                registro.user_id
+            )
         )
-
-        cursor.execute(sql, datos)
 
         if cursor.rowcount > 0:
             conexion.commit()
@@ -180,9 +207,7 @@ def modificar(registro):
             return True
 
         conexion.rollback()
-        print(
-            "No se encontró el registro o no se realizaron cambios."
-        )
+        print("No se detectaron cambios en el registro.")
         return False
 
     except Exception as e:
@@ -196,10 +221,6 @@ def modificar(registro):
         conexion.close()
 
 
-# ==================================================
-# ELIMINAR REGISTRO DE TIEMPO
-# ==================================================
-
 def eliminar(user_id):
     conexion = conectar()
 
@@ -212,12 +233,10 @@ def eliminar(user_id):
     try:
         cursor = conexion.cursor()
 
-        sql = """
-            DELETE FROM registro_tiempo
-            WHERE user_id = %s
-        """
-
-        cursor.execute(sql, (user_id,))
+        cursor.execute(
+            "DELETE FROM registro_tiempo WHERE user_id = %s",
+            (user_id,)
+        )
 
         if cursor.rowcount > 0:
             conexion.commit()
