@@ -1,3 +1,4 @@
+
 from DAO.Conexion import conectar
 
 
@@ -26,9 +27,7 @@ def insertar(proyecto):
         )
 
         cursor.execute(sql, datos)
-
         proyecto.user_id = cursor.lastrowid
-
         conexion.commit()
 
         print(
@@ -36,9 +35,9 @@ def insertar(proyecto):
             f"ID: {proyecto.user_id}"
         )
 
-    except Exception as e:
+    except Exception:
         conexion.rollback()
-        print("Error al registrar proyecto:", e)
+        print("No fue posible registrar el proyecto.")
 
     finally:
         if cursor:
@@ -69,13 +68,10 @@ def consultar():
         """
 
         cursor.execute(sql)
+        return cursor.fetchall()
 
-        resultados = cursor.fetchall()
-
-        return resultados
-
-    except Exception as e:
-        print("Error al consultar proyectos:", e)
+    except Exception:
+        print("No fue posible consultar los proyectos.")
         return []
 
     finally:
@@ -123,9 +119,9 @@ def modificar(proyecto):
                 "o no se realizaron cambios."
             )
 
-    except Exception as e:
+    except Exception:
         conexion.rollback()
-        print("Error al modificar proyecto:", e)
+        print("No fue posible modificar el proyecto.")
 
     finally:
         if cursor:
@@ -157,11 +153,90 @@ def eliminar(user_id):
             print("Proyecto eliminado correctamente.")
         else:
             conexion.rollback()
-            print("No existe un proyecto con ese ID.")
+            print("No existe un proyecto con ese ID.") 
 
     except Exception as e:
         conexion.rollback()
-        print("Error al eliminar proyecto:", e)
+
+        if e.args and e.args[0] == 1451:
+            print(
+                "No se puede eliminar el proyecto porque "
+                "tiene asignaciones o registros asociados."
+            )
+        else:
+            print("No fue posible eliminar el proyecto.")
+
+    finally:
+        if cursor:
+            cursor.close()
+        conexion.close()
+
+
+def consultar_empleados():
+    conexion = conectar()
+
+    if not conexion:
+        print("No fue posible conectar con la base de datos.")
+        return []
+
+    cursor = None
+
+    try:
+        cursor = conexion.cursor()
+
+        sql = """
+            SELECT user_id, nombre
+            FROM empleado
+            ORDER BY user_id
+        """
+
+        cursor.execute(sql)
+        return cursor.fetchall()
+
+    except Exception:
+        print("No fue posible consultar los empleados.")
+        return []
+
+    finally:
+        if cursor:
+            cursor.close()
+        conexion.close()
+
+
+def consultar_por_empleado(empleado_id):
+    conexion = conectar()
+
+    if not conexion:
+        print("No fue posible conectar con la base de datos.")
+        return []
+
+    cursor = None
+
+    try:
+        cursor = conexion.cursor()
+
+        sql = """
+            SELECT
+                p.user_id,
+                p.nombre,
+                p.descripcion,
+                p.fecha_inicio,
+                a.rol
+            FROM asignacion_emp AS a
+            INNER JOIN proyecto AS p
+                ON a.proyecto_id = p.user_id
+            WHERE a.empleado_id = %s
+            ORDER BY p.user_id
+        """
+
+        cursor.execute(sql, (empleado_id,))
+        return cursor.fetchall()
+
+    except Exception:
+        print(
+            "No fue posible consultar los proyectos del empleado."
+        )
+        return []
 
     finally:
         if cursor:

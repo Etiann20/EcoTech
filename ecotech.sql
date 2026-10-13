@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: localhost
--- Tiempo de generación: 07-10-2026 a las 04:30:59
+-- Tiempo de generación: 12-10-2026 a las 18:10:27
 -- Versión del servidor: 8.0.17
 -- Versión de PHP: 7.3.10
 
@@ -35,6 +35,15 @@ CREATE TABLE `asignacion_emp` (
   `rol` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Volcado de datos para la tabla `asignacion_emp`
+--
+
+INSERT INTO `asignacion_emp` (`asignacion_id`, `empleado_id`, `proyecto_id`, `rol`) VALUES
+(2, 2, 5, 'desarrollador'),
+(3, 3, 5, 're'),
+(4, 3, 7, 'fd');
+
 -- --------------------------------------------------------
 
 --
@@ -43,10 +52,18 @@ CREATE TABLE `asignacion_emp` (
 
 CREATE TABLE `departamento` (
   `user_id` int(11) NOT NULL,
-  `nombre` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `nombre` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
   `gerente_empleado_id` int(11) DEFAULT NULL,
-  `descripcion` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL
+  `descripcion` text COLLATE utf8mb4_unicode_ci NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `departamento`
+--
+
+INSERT INTO `departamento` (`user_id`, `nombre`, `gerente_empleado_id`, `descripcion`) VALUES
+(4, 'za', NULL, 'fdfd'),
+(5, 'aa', NULL, 'aa');
 
 -- --------------------------------------------------------
 
@@ -57,24 +74,22 @@ CREATE TABLE `departamento` (
 CREATE TABLE `empleado` (
   `user_id` int(11) NOT NULL,
   `fecha_inicio` date NOT NULL,
-  `salario` float NOT NULL,
-  `departamento_id` int(11) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- --------------------------------------------------------
-
---
--- Estructura de tabla para la tabla `persona`
---
-
-CREATE TABLE `persona` (
-  `user_id` int(11) NOT NULL,
-  `run` varchar(13) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `salario` int(11) NOT NULL,
+  `departamento_id` int(11) NOT NULL,
+  `run` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
   `nombre` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `direccion` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `telefono` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `direccion` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `telefono` int(11) NOT NULL,
   `correo` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `empleado`
+--
+
+INSERT INTO `empleado` (`user_id`, `fecha_inicio`, `salario`, `departamento_id`, `run`, `nombre`, `direccion`, `telefono`, `correo`) VALUES
+(3, '2002-12-21', 32, 4, '2112', 'dfgasdf', 'werweqr', 123, 'asdfg'),
+(4, '2002-03-12', 123, 5, '123', 'eqwe', 'sadf', 123, 'sdasdaf');
 
 -- --------------------------------------------------------
 
@@ -84,10 +99,19 @@ CREATE TABLE `persona` (
 
 CREATE TABLE `proyecto` (
   `user_id` int(11) NOT NULL,
-  `nombre` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `descripcion` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `nombre` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `descripcion` text COLLATE utf8mb4_unicode_ci NOT NULL,
   `fecha_inicio` date NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `proyecto`
+--
+
+INSERT INTO `proyecto` (`user_id`, `nombre`, `descripcion`, `fecha_inicio`) VALUES
+(5, 'aa', 'aa', '2002-12-20'),
+(6, 'sadf', 'fadf', '2002-12-21'),
+(7, 'asdf', 'asd', '2002-12-25');
 
 -- --------------------------------------------------------
 
@@ -100,9 +124,18 @@ CREATE TABLE `registro_tiempo` (
   `empleado_id` int(11) NOT NULL,
   `proyecto_id` int(11) NOT NULL,
   `fecha` date NOT NULL,
-  `horas` float NOT NULL,
-  `descripcion` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL
+  `horas` int(11) NOT NULL,
+  `descripcion` text COLLATE utf8mb4_unicode_ci NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `registro_tiempo`
+--
+
+INSERT INTO `registro_tiempo` (`user_id`, `empleado_id`, `proyecto_id`, `fecha`, `horas`, `descripcion`) VALUES
+(1, 2, 5, '2002-12-24', 5, 'adsdas'),
+(3, 3, 5, '2002-12-23', 3, 'sdf'),
+(4, 3, 5, '2002-12-23', 23, 'sdaf');
 
 --
 -- Índices para tablas volcadas
@@ -131,12 +164,6 @@ ALTER TABLE `empleado`
   ADD KEY `fk_empleado_departamento` (`departamento_id`);
 
 --
--- Indices de la tabla `persona`
---
-ALTER TABLE `persona`
-  ADD PRIMARY KEY (`user_id`);
-
---
 -- Indices de la tabla `proyecto`
 --
 ALTER TABLE `proyecto`
@@ -158,31 +185,31 @@ ALTER TABLE `registro_tiempo`
 -- AUTO_INCREMENT de la tabla `asignacion_emp`
 --
 ALTER TABLE `asignacion_emp`
-  MODIFY `asignacion_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `asignacion_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT de la tabla `departamento`
 --
 ALTER TABLE `departamento`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
--- AUTO_INCREMENT de la tabla `persona`
+-- AUTO_INCREMENT de la tabla `empleado`
 --
-ALTER TABLE `persona`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT;
+ALTER TABLE `empleado`
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT de la tabla `proyecto`
 --
 ALTER TABLE `proyecto`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT de la tabla `registro_tiempo`
 --
 ALTER TABLE `registro_tiempo`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- Restricciones para tablas volcadas
@@ -192,27 +219,18 @@ ALTER TABLE `registro_tiempo`
 -- Filtros para la tabla `asignacion_emp`
 --
 ALTER TABLE `asignacion_emp`
-  ADD CONSTRAINT `fk_asignacion_empleado` FOREIGN KEY (`empleado_id`) REFERENCES `empleado` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `fk_asignacion_proyecto` FOREIGN KEY (`proyecto_id`) REFERENCES `proyecto` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE;
-
---
--- Filtros para la tabla `departamento`
---
-ALTER TABLE `departamento`
-  ADD CONSTRAINT `fk_departamento_gerente` FOREIGN KEY (`gerente_empleado_id`) REFERENCES `empleado` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
 -- Filtros para la tabla `empleado`
 --
 ALTER TABLE `empleado`
-  ADD CONSTRAINT `fk_empleado_departamento` FOREIGN KEY (`departamento_id`) REFERENCES `departamento` (`user_id`) ON DELETE RESTRICT ON UPDATE CASCADE,
-  ADD CONSTRAINT `fk_empleado_persona` FOREIGN KEY (`user_id`) REFERENCES `persona` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+  ADD CONSTRAINT `fk_empleado_departamento` FOREIGN KEY (`departamento_id`) REFERENCES `departamento` (`user_id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 --
 -- Filtros para la tabla `registro_tiempo`
 --
 ALTER TABLE `registro_tiempo`
-  ADD CONSTRAINT `fk_registro_empleado` FOREIGN KEY (`empleado_id`) REFERENCES `empleado` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `fk_registro_proyecto` FOREIGN KEY (`proyecto_id`) REFERENCES `proyecto` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 COMMIT;
 

@@ -1,5 +1,6 @@
 
 from DAO.Conexion import conectar
+import pymysql
 
 
 def insertar(departamento):
@@ -35,9 +36,13 @@ def insertar(departamento):
             f"ID: {departamento.user_id}"
         )
 
-    except Exception as e:
+    except pymysql.MySQLError:
         conexion.rollback()
-        print("Error al registrar departamento:", e)
+        print("No fue posible registrar el departamento. Verifica los datos e inténtalo nuevamente.")
+
+    except Exception:
+        conexion.rollback()
+        print("Ocurrió un error inesperado al registrar el departamento.")
 
     finally:
         if cursor:
@@ -70,8 +75,8 @@ def consultar():
         cursor.execute(sql)
         return cursor.fetchall()
 
-    except Exception as e:
-        print("Error al consultar departamentos:", e)
+    except Exception:
+        print("No fue posible consultar los departamentos.")
         return []
 
     finally:
@@ -119,9 +124,13 @@ def modificar(departamento):
                 "o no se realizaron cambios."
             )
 
-    except Exception as e:
+    except pymysql.MySQLError:
         conexion.rollback()
-        print("Error al modificar departamento:", e)
+        print("No fue posible modificar el departamento. Verifica los datos e inténtalo nuevamente.")
+
+    except Exception:
+        conexion.rollback()
+        print("Ocurrió un error inesperado al modificar el departamento.")
 
     finally:
         if cursor:
@@ -155,9 +164,20 @@ def eliminar(user_id):
             conexion.rollback()
             print("No existe un departamento con ese ID.")
 
-    except Exception as e:
+    except pymysql.MySQLError as e:
         conexion.rollback()
-        print("Error al eliminar departamento:", e)
+
+        if e.args and e.args[0] == 1451:
+            print(
+                "\nNo se puede eliminar el departamento porque "
+                "tiene empleados asociados."
+            )
+        else:
+            print("No fue posible eliminar el departamento.")
+
+    except Exception:
+        conexion.rollback()
+        print("Ocurrió un error inesperado al eliminar el departamento.")
 
     finally:
         if cursor:

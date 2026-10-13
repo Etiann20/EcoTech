@@ -5,8 +5,8 @@ def conectar():
     try:
         conexion = pymysql.connect(
             host="localhost",
-            user="root",
-            password="admin123",
+            user="ecotech_admin",
+            password="ecotechAdmin123",
             database="ecotech",
             port=3306
         )

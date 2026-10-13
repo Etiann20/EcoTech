@@ -960,12 +960,134 @@ def menu_proyectos():
 
             GestionProyecto.insertar(proyecto)
 
+        
         # ------------------------------------------
         # CONSULTAR PROYECTOS
         # ------------------------------------------
         elif opcion == 2:
-            print("\n--- Proyectos registrados ---")
-            mostrar_proyectos()
+            print("\n--- Consultar proyectos ---")
+            print("1. Todos los proyectos")
+            print("2. Proyectos de un empleado")
+            print("0. Volver")
+
+            tipo_consulta = leer_entero(
+                "Seleccione una opción: "
+            )
+
+            if tipo_consulta == "SALIR":
+                break
+
+            if tipo_consulta == "CANCELAR":
+                continue
+
+            if tipo_consulta == 0:
+                continue
+
+            elif tipo_consulta == 1:
+                print("\n--- Todos los proyectos ---")
+                mostrar_proyectos()
+
+            elif tipo_consulta == 2:
+                print("\n--- Seleccionar empleado ---")
+
+                empleados = GestionProyecto.consultar_empleados()
+
+                if not empleados:
+                    print("No hay empleados registrados.")
+                    continue
+
+                print("-" * 45)
+                print(f"{'ID':<10}{'Nombre':<35}")
+                print("-" * 45)
+
+                for empleado in empleados:
+                    print(f"{empleado[0]:<10}{empleado[1]:<35}")
+
+                print("-" * 45)
+
+                empleado_id = leer_entero(
+                    "ID del empleado (CANCELAR o SALIR): "
+                )
+
+                if empleado_id == "SALIR":
+                    break
+
+                if empleado_id == "CANCELAR":
+                    continue
+
+                if empleado_id is None:
+                    continue
+
+                empleado_seleccionado = next(
+                    (
+                        empleado
+                        for empleado in empleados
+                        if empleado[0] == empleado_id
+                    ),
+                    None
+                )
+
+                if empleado_seleccionado is None:
+                    print("Error: selecciona un ID de empleado válido.")
+                    continue
+
+                proyectos = GestionProyecto.consultar_por_empleado(
+                    empleado_id
+                )
+
+                print(
+                    f"\n--- Proyectos de "
+                    f"{empleado_seleccionado[1]} ---"
+                )
+
+                if not proyectos:
+                    print(
+                        "Este empleado no tiene proyectos asignados."
+                    )
+                    continue
+
+                print("-" * 100)
+                print(
+                    f"{'ID':<6}"
+                    f"{'Proyecto':<25}"
+                    f"{'Descripción':<35}"
+                    f"{'Fecha inicio':<18}"
+                    f"{'Rol':<16}"
+                )
+                print("-" * 100)
+
+                for proyecto in proyectos:
+                    fecha = (
+                        str(proyecto[3])
+                        if proyecto[3] is not None
+                        else "Sin fecha"
+                    )
+
+                    descripcion = (
+                        proyecto[2]
+                        if proyecto[2]
+                        else "Sin descripción"
+                    )
+
+                    rol = (
+                        proyecto[4]
+                        if proyecto[4]
+                        else "Sin rol"
+                    )
+
+                    print(
+                        f"{proyecto[0]:<6}"
+                        f"{proyecto[1][:24]:<25}"
+                        f"{descripcion[:34]:<35}"
+                        f"{fecha:<18}"
+                        f"{rol[:15]:<16}"
+                    )
+
+                print("-" * 100)
+
+            else:
+                print("Error: opción no válida.")
+
 
         # ------------------------------------------
         # MODIFICAR PROYECTO
@@ -1041,7 +1163,7 @@ def menu_proyectos():
         # ------------------------------------------
         # ELIMINAR PROYECTO
         # ------------------------------------------
-        elif opcion == 4:
+        elif opcion == 4: 
             print("\n--- Eliminar proyecto ---")
 
             proyectos = mostrar_proyectos()
